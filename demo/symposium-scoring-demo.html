@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPSA Symposium — Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+  /* Shared */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-poster { background: #dbeafe; color: #1e40af; }
+  .badge-art { background: #f3e8ff; color: #6b21a8; }
+  .badge-scored { background: #dcfce7; color: #166534; }
+  .demo-badge { display: inline-block; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 99px; margin-bottom: 16px; }
+  .error-msg { background: #fef2f2; color: #dc2626; font-size: 13px; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; }
+  .btn { border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-blue { background: #2563eb; color: #fff; }
+  .btn-blue:hover { background: #1d4ed8; }
+  .btn-gray { background: #f1f5f9; color: #475569; }
+  .btn-gray:hover { background: #e2e8f0; }
+  .btn-green { background: #16a34a; color: #fff; }
+  .btn-green:hover { background: #15803d; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* Landing */
+  .landing { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(to bottom, #eff6ff, #fff); }
+  .landing-card { width: 100%; max-width: 480px; text-align: center; }
+  .landing-card h1 { font-size: 26px; font-weight: 700; }
+  .landing-card h2 { font-size: 26px; font-weight: 700; color: #2563eb; margin-bottom: 8px; }
+  .landing-card .tagline { font-size: 14px; color: #94a3b8; margin-bottom: 32px; }
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .role-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 16px; padding: 32px 20px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .role-card:hover { border-color: #93c5fd; box-shadow: 0 4px 12px rgba(37,99,235,0.1); }
+  .role-card .icon { font-size: 36px; margin-bottom: 12px; }
+  .role-card .role-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .role-card .role-desc { font-size: 13px; color: #94a3b8; }
+  .landing-footer { font-size: 12px; color: #cbd5e1; }
+
+  /* Judge header */
+  .header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header .sub { font-size: 11px; color: #94a3b8; }
+  .header .user { font-size: 13px; color: #64748b; }
+  .header button { background: none; border: none; color: #dc2626; font-size: 13px; cursor: pointer; }
+
+  /* Login */
+  .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(to bottom, #eff6ff, #fff); }
+  .login-card { width: 100%; max-width: 380px; text-align: center; }
+  .login-card h1 { font-size: 24px; font-weight: 700; }
+  .login-card h2 { font-size: 24px; font-weight: 700; color: #2563eb; margin-bottom: 8px; }
+  .login-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .login-box p { font-size: 14px; color: #64748b; margin-bottom: 16px; }
+  .code-input { width: 100%; text-align: center; font-size: 32px; font-family: monospace; font-weight: 700; letter-spacing: 0.3em; padding: 16px; border: 2px solid #d1d5db; border-radius: 12px; outline: none; text-transform: uppercase; }
+  .code-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  .login-btn { width: 100%; background: #2563eb; color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+  .login-btn:hover { background: #1d4ed8; }
+  .login-btn:disabled { opacity: 0.5; }
+  .text-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
+  .text-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+  /* Judge content */
+  .content { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+  .project-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .project-card:hover { border-color: #93c5fd; }
+  .project-card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .project-card .number { font-size: 18px; font-family: monospace; font-weight: 700; }
+  .project-card .title { font-size: 14px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .project-card .presenter { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+  /* Scoring */
+  .back-link { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: #2563eb; cursor: pointer; margin-bottom: 12px; border: none; background: none; }
+  .project-header { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .project-header .title { font-size: 16px; font-weight: 600; margin-top: 4px; }
+  .project-header .meta { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+  .group-label { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; }
+  .criterion-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .criterion-card .name { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+  .score-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .score-btn { padding: 12px 4px; border-radius: 8px; border: 2px solid; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; background: #fff; }
+  .score-btn .val { font-size: 20px; }
+  .score-btn .label { font-size: 9px; opacity: 0.75; }
+  .score-btn.s0 { border-color: #fca5a5; color: #b91c1c; background: #fef2f2; }
+  .score-btn.s1 { border-color: #fdba74; color: #c2410c; background: #fff7ed; }
+  .score-btn.s2 { border-color: #fcd34d; color: #a16207; background: #fefce8; }
+  .score-btn.s3 { border-color: #86efac; color: #166534; background: #f0fdf4; }
+  .score-btn.s0.selected { background: #ef4444; color: #fff; border-color: #ef4444; }
+  .score-btn.s1.selected { background: #f97316; color: #fff; border-color: #f97316; }
+  .score-btn.s2.selected { background: #eab308; color: #fff; border-color: #eab308; }
+  .score-btn.s3.selected { background: #22c55e; color: #fff; border-color: #22c55e; }
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+  .bottom-bar .total { font-size: 28px; font-weight: 700; }
+  .bottom-bar .max { font-size: 14px; color: #94a3b8; }
+  .submit-btn { background: #2563eb; color: #fff; border: none; padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .submit-btn:hover { background: #1d4ed8; }
+  .submit-btn:disabled { opacity: 0.5; }
+  .success-wrap { text-align: center; padding: 48px 16px; }
+  .success-icon { width: 64px; height: 64px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .success-icon svg { width: 32px; height: 32px; color: #16a34a; }
+
+  /* Admin layout */
+  .admin-layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; }
+  .sidebar .brand { padding: 24px 20px; border-bottom: 1px solid #e2e8f0; }
+  .sidebar .brand h1 { font-size: 16px; font-weight: 700; }
+  .sidebar .brand p { font-size: 12px; color: #94a3b8; }
+  .sidebar nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .sidebar nav a { display: block; padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; color: #64748b; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+  .sidebar nav a:hover { background: #f1f5f9; }
+  .sidebar nav a.active { background: #eff6ff; color: #1d4ed8; }
+  .sidebar .sidebar-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; }
+  .sidebar .sidebar-footer button { background: none; border: none; color: #dc2626; font-size: 13px; cursor: pointer; }
+  .admin-main { flex: 1; margin-left: 240px; padding: 32px; }
+  .admin-main .page-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; }
+
+  /* Admin cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .stat-card .stat-label { font-size: 13px; font-weight: 500; color: #94a3b8; }
+  .stat-card .stat-value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+  .stat-card .stat-sub { font-size: 12px; color: #cbd5e1; margin-top: 2px; }
+
+  /* Admin table */
+  .data-table { width: 100%; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; border-collapse: collapse; }
+  .data-table th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 600; color: #94a3b8; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #f8fafc; }
+
+  /* Filter tabs */
+  .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .filter-tab { padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: all 0.15s; }
+  .filter-tab.active { background: #dbeafe; color: #1e40af; }
+  .filter-tab:not(.active) { background: #f1f5f9; color: #64748b; }
+
+  /* Rank badge */
+  .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-size: 12px; font-weight: 700; }
+  .rank-top { background: #fef3c7; color: #92400e; }
+  .rank-other { background: #f1f5f9; color: #64748b; }
+
+  /* Rubric display */
+  .rubric-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+  .rubric-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+  .rubric-header h3 { font-size: 16px; font-weight: 600; }
+  .rubric-header .info { font-size: 13px; color: #94a3b8; }
+  .rubric-body { padding: 20px; }
+  .rubric-group-label { font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin: 16px 0 8px; }
+  .rubric-group-label:first-child { margin-top: 0; }
+  .rubric-criterion { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .rubric-criterion .range { font-size: 12px; color: #cbd5e1; }
+
+  /* Access code cards */
+  .code-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .code-card { border: 2px solid #d1d5db; border-radius: 12px; padding: 24px; text-align: center; }
+  .code-card .code-name { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .code-card .code-value { font-size: 36px; font-family: monospace; font-weight: 700; letter-spacing: 0.2em; color: #2563eb; }
+  .code-card .code-hint { font-size: 11px; color: #cbd5e1; margin-top: 8px; }
+
+  /* Toolbar */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .admin-main { margin-left: 0; padding: 16px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media print {
+    .sidebar { display: none; }
+    .admin-main { margin-left: 0; }
+    .toolbar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const JUDGES = [
+  { id:"j1", first:"Dr. Patricia", last:"Hernandez", code:"HRN47K", dept:"Biology" },
+  { id:"j2", first:"Dr. Thomas", last:"Wright", code:"WRT82M", dept:"Computer Science" },
+  { id:"j3", first:"Dr. Nancy", last:"Park", code:"PRK35N", dept:"Chemistry" },
+  { id:"j4", first:"Prof. Richard", last:"Cole", code:"CLE69R", dept:"Art & Architecture" },
+  { id:"j5", first:"Dr. Sandra", last:"Murphy", code:"MRP24S", dept:"Psychology" },
+  { id:"demo", first:"Demo", last:"Judge", code:"DEMO26", dept:"GPSA" },
+];
+const POSTER_PROJECTS = [
+  { id:"p1", num:"P-01", title:"Impact of Climate Change on Idaho Salmon Populations", first:"Jane", last:"Smith", dept:"Biology", table:"T-01" },
+  { id:"p2", num:"P-02", title:"Machine Learning for Crop Disease Detection", first:"Michael", last:"Chen", dept:"Computer Science", table:"T-02" },
+  { id:"p3", num:"P-03", title:"Novel Catalysts for Green Hydrogen Production", first:"Sarah", last:"Johnson", dept:"Chemistry", table:"T-03" },
+  { id:"p4", num:"P-04", title:"Anxiety Interventions in Rural College Students", first:"David", last:"Williams", dept:"Psychology", table:"T-04" },
+  { id:"p5", num:"P-05", title:"Seismic Resilience of Idaho Bridge Infrastructure", first:"Maria", last:"Garcia", dept:"Civil Engineering", table:"T-05" },
+  { id:"p6", num:"P-06", title:"Wildfire Risk Modeling in the Inland Northwest", first:"James", last:"Brown", dept:"Natural Resources", table:"T-06" },
+  { id:"p7", num:"P-07", title:"CRISPR Applications in Lentil Crop Improvement", first:"Emily", last:"Davis", dept:"Plant Sciences", table:"T-07" },
+  { id:"p8", num:"P-08", title:"Water Quality Assessment of the Palouse Basin", first:"Robert", last:"Martinez", dept:"Environmental Science", table:"T-08" },
+  { id:"p9", num:"P-09", title:"Nez Perce Language Revitalization Through Technology", first:"Lisa", last:"Taylor", dept:"Education", table:"T-09" },
+  { id:"p10", num:"P-10", title:"Economic Impact of Remote Work on Rural Communities", first:"Kevin", last:"Anderson", dept:"Economics", table:"T-10" },
+];
+const ART_PROJECTS = [
+  { id:"a1", num:"A-01", title:"Reflections on Rural Identity", first:"Alex", last:"Rivera", dept:"Art & Architecture", table:"T-A01" },
+  { id:"a2", num:"A-02", title:"Palouse Landscapes in Mixed Media", first:"Jordan", last:"Lee", dept:"Art & Architecture", table:"T-A02" },
+  { id:"a3", num:"A-03", title:"Digital Narratives of Migration", first:"Sam", last:"Patel", dept:"Art & Architecture", table:"T-A03" },
+  { id:"a4", num:"A-04", title:"Sound and Space: An Interactive Installation", first:"Taylor", last:"Kim", dept:"Music", table:"T-A04" },
+  { id:"a5", num:"A-05", title:"Ceramic Forms Inspired by Idaho Geology", first:"Morgan", last:"White", dept:"Art & Architecture", table:"T-A05" },
+];
+const ALL_PROJECTS = [
+  ...POSTER_PROJECTS.map(p => ({ ...p, category:"Poster" })),
+  ...ART_PROJECTS.map(p => ({ ...p, category:"Art" })),
+];
+const POSTER_CRITERIA = [
+  { id:1, name:"Poster Layout", group:"Poster Content" },
+  { id:2, name:"Relevant and brief introduction", group:"Poster Content" },
+  { id:3, name:"Explicit mention of research question & rationale", group:"Poster Content" },
+  { id:4, name:"Appropriate description of research methodology and data analysis", group:"Poster Content" },
+  { id:5, name:"Discussion of results accurately interprets results", group:"Poster Content" },
+  { id:6, name:"Appropriate use & explanation of graphics", group:"Poster Content" },
+  { id:7, name:"Presentation was comprehensive & had a cohesive flow", group:"Communication Skills" },
+  { id:8, name:"Research's impact on field or community clearly stated", group:"Communication Skills" },
+  { id:9, name:"Student presented information in an engaging, enthusiastic manner", group:"Communication Skills" },
+  { id:10, name:"Appropriate use of technical language", group:"Professional Presentation" },
+  { id:11, name:"Adequate handling of questions and feedback", group:"Professional Presentation" },
+  { id:12, name:"Poster is legible and has appropriate formatting and style", group:"Professional Presentation" },
+];
+const ART_CRITERIA = [
+  { id:101, name:"Craftsmanship/Technical Skill", group:null },
+  { id:102, name:"Creativity and Originality", group:null },
+  { id:103, name:"Communication of Ideas and Theme", group:null },
+];
+const SCORE_LABELS = ["Poor","Fair","Good","Excellent"];
+
+// ============================================================
+// STATE
+// ============================================================
+let S = {
+  screen: "landing",
+  // Judge state
+  judge: null, search: "", selectedProject: null,
+  scores: {},           // { judgeId: { projectId: { criterionId: value } } }
+  scoredProjects: {},   // { judgeId: Set }
+  error: "",
+  // Admin state
+  adminPage: "dashboard",
+  adminFilter: "",
+};
+
+function judgeScores(judgeId, projectId) {
+  return (S.scores[judgeId] || {})[projectId] || {};
+}
+function isScored(judgeId, projectId) {
+  return (S.scoredProjects[judgeId] || new Set()).has(projectId);
+}
+
+// Compute results from all stored scores
+function computeResults(categoryFilter) {
+  let projectTotals = {}; // { projectId: { total, judges: Set } }
+  for (let [judgeId, judgeData] of Object.entries(S.scores)) {
+    for (let [projectId, critScores] of Object.entries(judgeData)) {
+      if (!projectTotals[projectId]) projectTotals[projectId] = { total: 0, judges: new Set() };
+      let sum = Object.values(critScores).reduce((a,b) => a+b, 0);
+      // Only count if all criteria scored
+      let p = ALL_PROJECTS.find(x => x.id === projectId);
+      let needed = p.category === "Art" ? ART_CRITERIA.length : POSTER_CRITERIA.length;
+      if (Object.keys(critScores).length === needed) {
+        projectTotals[projectId].total += sum;
+        projectTotals[projectId].judges.add(judgeId);
+      }
+    }
+  }
+  let results = ALL_PROJECTS
+    .filter(p => categoryFilter ? p.category === categoryFilter : true)
+    .map(p => {
+      let data = projectTotals[p.id] || { total: 0, judges: new Set() };
+      let jc = data.judges.size;
+      return { ...p, judgeCount: jc, totalScore: data.total, avgScore: jc > 0 ? (data.total / jc) : 0 };
+    })
+    .filter(r => r.judgeCount > 0)
+    .sort((a,b) => b.avgScore - a.avgScore);
+  // Assign ranks per category
+  let rank = 0; let lastCat = null;
+  results.forEach(r => { if (r.category !== lastCat) { rank = 1; lastCat = r.category; } else rank++; r.rank = rank; });
+  return results;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const app = document.getElementById("app");
+  let html = "";
+  switch (S.screen) {
+    case "landing": html = renderLanding(); break;
+    case "judgeLogin": html = renderJudgeLogin(); break;
+    case "judgeProjects": html = renderJudgeHeader() + renderJudgeProjectList(); break;
+    case "judgeScoring": html = renderJudgeHeader() + renderJudgeScoring(); break;
+    case "judgeSuccess": html = renderJudgeHeader() + renderJudgeSuccess(); break;
+    case "adminLogin": html = renderAdminLogin(); break;
+    case "admin": html = renderAdmin(); break;
+  }
+  app.innerHTML = html;
+  bindEvents();
+}
+
+// ---- Landing ----
+function renderLanding() {
+  return `<div class="landing">
+    <div class="landing-card">
+      <h1>GPSA Graduate Student</h1>
+      <h2>Symposium 2026</h2>
+      <p class="tagline">Judging &amp; Scoring Application</p>
+      <span class="demo-badge">INTERACTIVE DEMO — No server required</span>
+      <div class="role-grid">
+        <div class="role-card" id="roleJudge">
+          <div class="icon">&#9997;&#65039;</div>
+          <div class="role-title">Judge</div>
+          <div class="role-desc">Score student presentations using your access code</div>
+        </div>
+        <div class="role-card" id="roleAdmin">
+          <div class="icon">&#9881;&#65039;</div>
+          <div class="role-title">Admin</div>
+          <div class="role-desc">Manage projects, judges, rubrics, and view results</div>
+        </div>
+      </div>
+      <p class="landing-footer">March 13, 2026 — Bruce Pitman Center, International Ballroom</p>
+    </div>
+  </div>`;
+}
+
+// ---- Judge Login ----
+function renderJudgeLogin() {
+  return `<div class="login-wrap">
+    <div class="login-card">
+      <h1>Judge Scoring Portal</h1>
+      <h2 style="margin-bottom:24px;">GPSA Symposium 2026</h2>
+      <div class="login-box">
+        <p>Enter your judge access code</p>
+        ${S.error ? `<div class="error-msg">${S.error}</div>` : ""}
+        <form id="judgeLoginForm">
+          <input type="text" id="codeInput" class="code-input" placeholder="ABC123" maxlength="6" autocomplete="off" autofocus>
+          <button type="submit" class="login-btn" id="judgeLoginBtn" disabled>Start Scoring</button>
+        </form>
+        <div style="margin-top:16px; font-size:12px; color:#94a3b8; line-height:1.6;">
+          <strong>Demo codes:</strong> HRN47K, WRT82M, PRK35N, CLE69R, MRP24S, DEMO26
+        </div>
+      </div>
+      <button id="backToLanding" style="margin-top:16px; background:none; border:none; color:#2563eb; font-size:14px; cursor:pointer;">&larr; Back</button>
+    </div>
+  </div>`;
+}
+
+// ---- Judge Header ----
+function renderJudgeHeader() {
+  return `<div class="header">
+    <div><h1>GPSA Symposium</h1><div class="sub">Graduate Student Symposium 2026</div></div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="user">${S.judge.first} ${S.judge.last}</span>
+      <button id="judgeLogout">Exit</button>
+    </div>
+  </div>`;
+}
+
+// ---- Judge Project List ----
+function renderJudgeProjectList() {
+  let term = S.search.toLowerCase();
+  let filtered = ALL_PROJECTS.filter(p => {
+    if (!term) return true;
+    return p.num.toLowerCase().includes(term) || p.title.toLowerCase().includes(term) || (p.first+" "+p.last).toLowerCase().includes(term);
+  });
+  let scored = S.scoredProjects[S.judge.id] || new Set();
+  let cards = filtered.map(p => {
+    let s = scored.has(p.id);
+    return `<div class="project-card" data-project="${p.id}">
+      <div class="top">
+        <span class="number">${p.num}</span>
+        <span class="badge ${p.category==='Art'?'badge-art':'badge-poster'}">${p.category}</span>
+        ${s ? '<span class="badge badge-scored">Scored</span>' : ''}
+      </div>
+      <div class="title">${p.title}</div>
+      <div class="presenter">${p.first} ${p.last} &mdash; ${p.dept}</div>
+    </div>`;
+  }).join("");
+  return `<div class="content">
+    <div class="page-title">Projects to Score</div>
+    ${scored.size>0 ? `<div style="font-size:13px;color:#16a34a;margin-bottom:12px;font-weight:600;">You've scored ${scored.size} of ${ALL_PROJECTS.length} projects</div>` : ''}
+    <input type="text" id="judgeSearch" class="text-input" placeholder="Search projects..." value="${S.search}" style="margin-bottom:16px;">
+    ${cards || '<div style="text-align:center;padding:32px;color:#94a3b8;">No projects found</div>'}
+  </div>`;
+}
+
+// ---- Judge Scoring ----
+function renderJudgeScoring() {
+  let p = S.selectedProject;
+  let criteria = p.category === "Art" ? ART_CRITERIA : POSTER_CRITERIA;
+  let maxScore = p.category === "Art" ? 9 : 36;
+  let ps = judgeScores(S.judge.id, p.id);
+  let total = Object.values(ps).reduce((a,b)=>a+b, 0);
+  let allDone = criteria.every(c => ps[c.id] !== undefined);
+  let groups = {};
+  criteria.forEach(c => { let g = c.group||"General"; if (!groups[g]) groups[g]=[]; groups[g].push(c); });
+
+  let html = `<div class="content" style="padding-bottom:100px;">
+    <button class="back-link" id="scoringBack">&larr; Back to projects</button>
+    <div class="project-header">
+      <div class="top"><span class="number">${p.num}</span><span class="badge ${p.category==='Art'?'badge-art':'badge-poster'}">${p.category}</span></div>
+      <div class="title">${p.title}</div>
+      <div class="meta">${p.first} ${p.last} &mdash; ${p.dept}</div>
+    </div>`;
+  for (let [gn, gc] of Object.entries(groups)) {
+    if (gn !== "General") html += `<div class="group-label">${gn}</div>`;
+    for (let c of gc) {
+      let btns = [0,1,2,3].map(v => {
+        let sel = ps[c.id] === v ? "selected" : "";
+        return `<button class="score-btn s${v} ${sel}" data-cid="${c.id}" data-val="${v}"><div class="val">${v}</div><div class="label">${SCORE_LABELS[v]}</div></button>`;
+      }).join("");
+      html += `<div class="criterion-card"><div class="name">${c.name}</div><div class="score-buttons">${btns}</div></div>`;
+    }
+  }
+  html += `</div><div class="bottom-bar"><div><span class="total">${total}</span><span class="max"> / ${maxScore}</span></div>
+    <button class="submit-btn" id="submitScores" ${allDone?'':'disabled'}>Submit Scores</button></div>`;
+  return html;
+}
+
+// ---- Judge Success ----
+function renderJudgeSuccess() {
+  let p = S.selectedProject;
+  return `<div class="content"><div class="success-wrap">
+    <div class="success-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Scores Submitted!</h2>
+    <p style="color:#64748b; margin-bottom:24px;">${p.title}</p>
+    <button class="btn btn-blue" id="scoreAnother" style="padding:14px 24px; font-size:16px; border-radius:12px;">Score Another Project</button>
+  </div></div>`;
+}
+
+// ---- Admin Login ----
+function renderAdminLogin() {
+  return `<div class="login-wrap">
+    <div class="login-card">
+      <h1>Admin Login</h1>
+      <h2 style="margin-bottom:24px;">GPSA Symposium 2026</h2>
+      <div class="login-box">
+        <p>Enter admin credentials</p>
+        ${S.error ? `<div class="error-msg">${S.error}</div>` : ""}
+        <form id="adminLoginForm">
+          <input type="text" id="adminUser" class="text-input" placeholder="Username" style="margin-bottom:12px;" autofocus>
+          <input type="password" id="adminPass" class="text-input" placeholder="Password" style="margin-bottom:16px;">
+          <button type="submit" class="login-btn">Sign in</button>
+        </form>
+        <div style="margin-top:12px; font-size:12px; color:#94a3b8;">Demo: admin / admin</div>
+      </div>
+      <button id="backToLanding2" style="margin-top:16px; background:none; border:none; color:#2563eb; font-size:14px; cursor:pointer;">&larr; Back</button>
+    </div>
+  </div>`;
+}
+
+// ---- Admin ----
+function renderAdmin() {
+  const pages = [
+    { id:"dashboard", label:"Dashboard" },
+    { id:"projects", label:"Projects" },
+    { id:"judges", label:"Judges" },
+    { id:"rubrics", label:"Rubrics" },
+    { id:"results", label:"Results" },
+  ];
+  let sidebar = `<aside class="sidebar">
+    <div class="brand"><h1>Symposium Admin</h1><p>GPSA 2026</p></div>
+    <nav>${pages.map(p => `<a class="${S.adminPage===p.id?'active':''}" data-page="${p.id}">${p.label}</a>`).join("")}</nav>
+    <div class="sidebar-footer"><button id="adminLogout">Sign out</button></div>
+  </aside>`;
+
+  let content = "";
+  switch (S.adminPage) {
+    case "dashboard": content = renderAdminDashboard(); break;
+    case "projects": content = renderAdminProjects(); break;
+    case "judges": content = renderAdminJudges(); break;
+    case "rubrics": content = renderAdminRubrics(); break;
+    case "results": content = renderAdminResults(); break;
+  }
+  return `<div class="admin-layout">${sidebar}<div class="admin-main">${content}</div></div>`;
+}
+
+function renderAdminDashboard() {
+  let results = computeResults();
+  let scoredSet = new Set(results.map(r => r.id));
+  let totalJudgesWithScores = new Set();
+  for (let [jid, sp] of Object.entries(S.scoredProjects)) { if ((sp instanceof Set) && sp.size > 0) totalJudgesWithScores.add(jid); }
+  let pairsScored = 0;
+  for (let [jid, judgeData] of Object.entries(S.scores)) { pairsScored += Object.keys(judgeData).length; }
+  let coverage = ALL_PROJECTS.length > 0 ? Math.round(scoredSet.size / ALL_PROJECTS.length * 100) : 0;
+
+  return `
+    <div class="page-title">Dashboard</div>
+    <div style="margin-bottom:8px;"><strong>2026 Graduate Student Symposium</strong></div>
+    <div style="font-size:14px; color:#64748b; margin-bottom:24px;">Thursday, March 13, 2026 &mdash; Bruce Pitman Center, International Ballroom</div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Projects</div><div class="stat-value">${ALL_PROJECTS.length}</div><div class="stat-sub">${POSTER_PROJECTS.length} poster, ${ART_PROJECTS.length} art</div></div>
+      <div class="stat-card"><div class="stat-label">Judges</div><div class="stat-value">${JUDGES.length}</div><div class="stat-sub">registered</div></div>
+      <div class="stat-card"><div class="stat-label">Scores Submitted</div><div class="stat-value">${pairsScored}</div><div class="stat-sub">judge-project pairs</div></div>
+      <div class="stat-card"><div class="stat-label">Coverage</div><div class="stat-value">${coverage}%</div><div class="stat-sub">${scoredSet.size} of ${ALL_PROJECTS.length} projects scored</div></div>
+    </div>
+    <div style="font-size:13px; color:#94a3b8;">Tip: Open this file in two browser tabs &mdash; score as a judge in one, then view updated results here in admin.</div>`;
+}
+
+function renderAdminProjects() {
+  let f = S.adminFilter;
+  let filtered = f ? ALL_PROJECTS.filter(p => p.category === f) : ALL_PROJECTS;
+  let rows = filtered.map(p => {
+    // Count how many judges scored this project
+    let jc = 0;
+    for (let [jid, sp] of Object.entries(S.scoredProjects)) { if ((sp instanceof Set) && sp.has(p.id)) jc++; }
+    return `<tr>
+      <td style="font-family:monospace; font-weight:600;">${p.num}</td>
+      <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.title}</td>
+      <td>${p.first} ${p.last}</td>
+      <td style="color:#64748b;">${p.dept}</td>
+      <td><span class="badge ${p.category==='Art'?'badge-art':'badge-poster'}">${p.category}</span></td>
+      <td style="color:#64748b;">${p.table}</td>
+      <td style="color:#64748b;">${jc}</td>
+    </tr>`;
+  }).join("");
+
+  return `
+    <div class="toolbar">
+      <div class="page-title" style="margin-bottom:0;">Projects</div>
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab ${f===''?'active':''}" data-filter="">All (${ALL_PROJECTS.length})</button>
+      <button class="filter-tab ${f==='Poster'?'active':''}" data-filter="Poster">Poster (${POSTER_PROJECTS.length})</button>
+      <button class="filter-tab ${f==='Art'?'active':''}" data-filter="Art">Art (${ART_PROJECTS.length})</button>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Title</th><th>Presenter</th><th>Dept</th><th>Type</th><th>Table</th><th>Judges</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderAdminJudges() {
+  let rows = JUDGES.map(j => {
+    let scored = S.scoredProjects[j.id] ? (S.scoredProjects[j.id] instanceof Set ? S.scoredProjects[j.id].size : 0) : 0;
+    return `<tr>
+      <td style="font-weight:500;">${j.first} ${j.last}</td>
+      <td style="color:#64748b;">${j.dept}</td>
+      <td style="font-family:monospace; font-weight:700; color:#2563eb; font-size:16px;">${j.code}</td>
+      <td style="color:#64748b;">${scored} projects</td>
+    </tr>`;
+  }).join("");
+
+  let codeCards = JUDGES.map(j => `
+    <div class="code-card">
+      <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">Judge Access Code</div>
+      <div class="code-name">${j.first} ${j.last}</div>
+      <div class="code-value">${j.code}</div>
+      <div class="code-hint">Enter this code at the scoring app</div>
+    </div>`).join("");
+
+  return `
+    <div class="toolbar">
+      <div class="page-title" style="margin-bottom:0;">Judges</div>
+      <button class="btn btn-gray" id="toggleCodes">Print Access Codes</button>
+    </div>
+    <div id="codeCards" class="code-grid" style="display:none; margin-bottom:24px;">${codeCards}</div>
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Department</th><th>Access Code</th><th>Scored</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderAdminRubrics() {
+  function criteriaHTML(criteria) {
+    let groups = {};
+    criteria.forEach(c => { let g = c.group || "General"; if (!groups[g]) groups[g]=[]; groups[g].push(c); });
+    let html = "";
+    for (let [gn, gc] of Object.entries(groups)) {
+      if (gn !== "General") html += `<div class="rubric-group-label">${gn}</div>`;
+      gc.forEach(c => { html += `<div class="rubric-criterion"><span>${c.name}</span><span class="range">0&ndash;3</span></div>`; });
+    }
+    return html;
+  }
+  return `
+    <div class="page-title">Rubrics</div>
+    <div class="rubric-section">
+      <div class="rubric-header"><h3>Poster Rubric</h3><div><span class="badge badge-poster">Poster</span> <span class="info" style="margin-left:8px;">${POSTER_CRITERIA.length} criteria &mdash; Max: 36 pts</span></div></div>
+      <div class="rubric-body"><div style="font-size:12px; color:#cbd5e1; text-align:right; margin-bottom:8px;">Poor (0) &middot; Fair (1) &middot; Good (2) &middot; Excellent (3)</div>${criteriaHTML(POSTER_CRITERIA)}</div>
+    </div>
+    <div class="rubric-section">
+      <div class="rubric-header"><h3>Art Rubric</h3><div><span class="badge badge-art">Art</span> <span class="info" style="margin-left:8px;">${ART_CRITERIA.length} criteria &mdash; Max: 9 pts</span></div></div>
+      <div class="rubric-body"><div style="font-size:12px; color:#cbd5e1; text-align:right; margin-bottom:8px;">Poor (0) &middot; Fair (1) &middot; Good (2) &middot; Excellent (3)</div>${criteriaHTML(ART_CRITERIA)}</div>
+    </div>`;
+}
+
+function renderAdminResults() {
+  let f = S.adminFilter;
+  let results = computeResults(f || null);
+  if (results.length === 0) {
+    return `<div class="toolbar"><div class="page-title" style="margin-bottom:0;">Results</div></div>
+      <div class="filter-tabs">
+        <button class="filter-tab ${f===''?'active':''}" data-filter="">All</button>
+        <button class="filter-tab ${f==='Poster'?'active':''}" data-filter="Poster">Poster</button>
+        <button class="filter-tab ${f==='Art'?'active':''}" data-filter="Art">Art</button>
+      </div>
+      <div style="text-align:center; padding:48px; color:#94a3b8; background:#fff; border:1px solid #e2e8f0; border-radius:12px;">
+        No scores yet. Try scoring some projects as a judge first!<br>
+        <button class="btn btn-blue" id="goToJudge" style="margin-top:16px;">Switch to Judge View</button>
+      </div>`;
+  }
+  let rows = results.map(r => `<tr>
+    <td><span class="rank-badge ${r.rank<=3?'rank-top':'rank-other'}">${r.rank}</span></td>
+    <td style="font-family:monospace;">${r.num}</td>
+    <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.title}</td>
+    <td>${r.first} ${r.last}</td>
+    <td style="color:#64748b;">${r.dept}</td>
+    <td><span class="badge ${r.category==='Art'?'badge-art':'badge-poster'}">${r.category}</span></td>
+    <td style="text-align:right;">${r.judgeCount}</td>
+    <td style="text-align:right; font-weight:600;">${r.totalScore}</td>
+    <td style="text-align:right; font-weight:600; color:#2563eb;">${r.avgScore.toFixed(1)}</td>
+  </tr>`).join("");
+
+  return `
+    <div class="toolbar"><div class="page-title" style="margin-bottom:0;">Results</div></div>
+    <div class="filter-tabs">
+      <button class="filter-tab ${f===''?'active':''}" data-filter="">All</button>
+      <button class="filter-tab ${f==='Poster'?'active':''}" data-filter="Poster">Poster</button>
+      <button class="filter-tab ${f==='Art'?'active':''}" data-filter="Art">Art</button>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Rank</th><th>#</th><th>Title</th><th>Presenter</th><th>Dept</th><th>Type</th><th style="text-align:right;">Judges</th><th style="text-align:right;">Total</th><th style="text-align:right;">Avg</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ============================================================
+// EVENT BINDING
+// ============================================================
+function bindEvents() {
+  // Landing
+  on("roleJudge", "click", () => { S.screen = "judgeLogin"; S.error = ""; render(); });
+  on("roleAdmin", "click", () => { S.screen = "adminLogin"; S.error = ""; render(); });
+  on("backToLanding", "click", () => { S.screen = "landing"; render(); });
+  on("backToLanding2", "click", () => { S.screen = "landing"; render(); });
+
+  // Judge login
+  let ci = document.getElementById("codeInput");
+  if (ci) { ci.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase(); document.getElementById("judgeLoginBtn").disabled = e.target.value.length < 6; }); ci.focus(); }
+  let jlf = document.getElementById("judgeLoginForm");
+  if (jlf) jlf.addEventListener("submit", e => {
+    e.preventDefault();
+    let code = document.getElementById("codeInput").value.trim().toUpperCase();
+    let judge = JUDGES.find(j => j.code === code);
+    if (!judge) { S.error = "Invalid access code"; render(); return; }
+    S.judge = judge; S.error = ""; S.search = ""; S.screen = "judgeProjects";
+    if (!S.scoredProjects[judge.id]) S.scoredProjects[judge.id] = new Set();
+    render();
+  });
+
+  // Admin login
+  let alf = document.getElementById("adminLoginForm");
+  if (alf) alf.addEventListener("submit", e => {
+    e.preventDefault();
+    let u = document.getElementById("adminUser").value;
+    let p = document.getElementById("adminPass").value;
+    if (u === "admin" && p === "admin") { S.screen = "admin"; S.adminPage = "dashboard"; S.adminFilter = ""; S.error = ""; render(); }
+    else { S.error = "Invalid credentials"; render(); }
+  });
+
+  // Judge logout
+  on("judgeLogout", "click", () => { S.screen = "landing"; S.judge = null; S.search = ""; render(); });
+
+  // Judge search
+  let js = document.getElementById("judgeSearch");
+  if (js) { js.addEventListener("input", e => { S.search = e.target.value; render(); let el = document.getElementById("judgeSearch"); if (el) { el.focus(); el.selectionStart = el.selectionEnd = e.target.selectionStart; } }); }
+
+  // Judge project cards
+  document.querySelectorAll(".project-card").forEach(c => c.addEventListener("click", () => {
+    S.selectedProject = ALL_PROJECTS.find(p => p.id === c.dataset.project);
+    S.screen = "judgeScoring"; render(); window.scrollTo(0,0);
+  }));
+
+  // Scoring back
+  on("scoringBack", "click", () => { S.screen = "judgeProjects"; render(); });
+
+  // Score buttons
+  document.querySelectorAll(".score-btn").forEach(b => b.addEventListener("click", () => {
+    let cid = parseInt(b.dataset.cid), val = parseInt(b.dataset.val), pid = S.selectedProject.id, jid = S.judge.id;
+    if (!S.scores[jid]) S.scores[jid] = {};
+    if (!S.scores[jid][pid]) S.scores[jid][pid] = {};
+    S.scores[jid][pid][cid] = val;
+    render();
+  }));
+
+  // Submit scores
+  on("submitScores", "click", () => {
+    if (!S.scoredProjects[S.judge.id]) S.scoredProjects[S.judge.id] = new Set();
+    S.scoredProjects[S.judge.id].add(S.selectedProject.id);
+    S.screen = "judgeSuccess"; render();
+  });
+
+  // Score another
+  on("scoreAnother", "click", () => { S.screen = "judgeProjects"; render(); });
+
+  // Admin nav
+  document.querySelectorAll(".sidebar nav a").forEach(a => a.addEventListener("click", () => {
+    S.adminPage = a.dataset.page; S.adminFilter = ""; render();
+  }));
+
+  // Admin logout
+  on("adminLogout", "click", () => { S.screen = "landing"; render(); });
+
+  // Filter tabs
+  document.querySelectorAll(".filter-tab").forEach(t => t.addEventListener("click", () => {
+    S.adminFilter = t.dataset.filter; render();
+  }));
+
+  // Toggle codes
+  on("toggleCodes", "click", () => {
+    let el = document.getElementById("codeCards");
+    if (el) el.style.display = el.style.display === "none" ? "grid" : "none";
+  });
+
+  // Go to judge from results
+  on("goToJudge", "click", () => { S.screen = "judgeLogin"; S.error = ""; render(); });
+}
+
+function on(id, evt, fn) { let el = document.getElementById(id); if (el) el.addEventListener(evt, fn); }
+
+// Boot
+render();
+</script>
+</body>
+</html>
