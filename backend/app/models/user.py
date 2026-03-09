@@ -22,5 +22,5 @@ class User(Base):
         sa.String(50), default="admin", server_default="admin"
     )
     Is_Active: Mapped[bool] = mapped_column(
-        sa.Boolean, default=True, server_default="1"
+        sa.Boolean, default=True, server_default=sa.text("true")
     )

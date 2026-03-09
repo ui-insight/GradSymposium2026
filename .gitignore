@@ -25,5 +25,8 @@ Thumbs.db
 *.egg
 *.whl
 
+# Docker overrides
+docker-compose.override.yml
+
 # Plan file (working notes)
 plan.md

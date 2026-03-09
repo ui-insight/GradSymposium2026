@@ -20,7 +20,7 @@ class Event(Base):
     Location: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     Description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     Is_Active: Mapped[bool] = mapped_column(
-        sa.Boolean, default=True, server_default="1"
+        sa.Boolean, default=True, server_default=sa.text("true")
     )
     Created_At: Mapped[datetime.datetime] = mapped_column(
         sa.DateTime,

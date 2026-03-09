@@ -28,7 +28,7 @@ class Project(Base):
     Category: Mapped[str] = mapped_column(sa.String(20), nullable=False)
     Table_Number: Mapped[str | None] = mapped_column(sa.String(20), nullable=True)
     Is_Active: Mapped[bool] = mapped_column(
-        sa.Boolean, default=True, server_default="1"
+        sa.Boolean, default=True, server_default=sa.text("true")
     )
 
     scores: Mapped[list["Score"]] = relationship(  # noqa: F821

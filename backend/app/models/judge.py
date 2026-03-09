@@ -25,7 +25,7 @@ class Judge(Base):
         sa.String(10), unique=True, nullable=False
     )
     Is_Active: Mapped[bool] = mapped_column(
-        sa.Boolean, default=True, server_default="1"
+        sa.Boolean, default=True, server_default=sa.text("true")
     )
 
     scores: Mapped[list["Score"]] = relationship(  # noqa: F821

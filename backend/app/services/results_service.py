@@ -133,7 +133,7 @@ async def get_event_summary(db: AsyncSession, event_id: str) -> EventSummary:
     score_pairs = await db.execute(
         select(
             func.count(
-                func.distinct(Score.Judge_ID.op("||")(Score.Project_ID))
+                func.distinct(func.concat(Score.Judge_ID, Score.Project_ID))
             )
         )
         .join(Project, Score.Project_ID == Project.Project_ID)
