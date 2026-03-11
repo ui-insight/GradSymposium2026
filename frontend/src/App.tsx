@@ -12,6 +12,7 @@ import { AssignmentsPage } from './pages/admin/AssignmentsPage'
 import { JudgeLoginPage } from './pages/judge/JudgeLoginPage'
 import { JudgeProjectListPage } from './pages/judge/JudgeProjectListPage'
 import { JudgeScoringPage } from './pages/judge/JudgeScoringPage'
+import { LandingPage } from './pages/LandingPage'
 
 function App() {
   return (
@@ -49,9 +50,9 @@ function App() {
         <Route path="projects/:projectId" element={<JudgeScoringPage />} />
       </Route>
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/judge" replace />} />
-      <Route path="*" element={<Navigate to="/judge" replace />} />
+      {/* Landing page */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
