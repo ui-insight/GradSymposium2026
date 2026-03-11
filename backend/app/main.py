@@ -14,7 +14,7 @@ from app.api.v1.router import api_router  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.engine import async_session_factory, engine  # noqa: E402
-from app.db.seed import seed_database  # noqa: E402
+from app.db.seed import ensure_admin, seed_database  # noqa: E402
 
 # Ensure all models are imported so create_all sees them
 import app.models  # noqa: F401, E402
@@ -44,10 +44,13 @@ async def lifespan(app: FastAPI):
 
         await conn.run_sync(_stamp)
 
-    # Seed dev data
-    if settings.dev_mode:
-        async with async_session_factory() as session:
-            await seed_database(session)
+    # Ensure admin user exists (all environments)
+    async with async_session_factory() as session:
+        await ensure_admin(session)
+
+    # Seed event data (real 2026 symposium data — idempotent)
+    async with async_session_factory() as session:
+        await seed_database(session)
 
     yield
 

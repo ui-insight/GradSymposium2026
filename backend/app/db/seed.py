@@ -1,6 +1,7 @@
-"""Seed data for development database."""
+"""Seed data for the 2026 Graduate Student Symposium."""
 
 import datetime
+import hashlib
 import uuid
 
 from sqlalchemy import select
@@ -9,23 +10,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.password import hash_password
 from app.models.event import Event
 from app.models.judge import Judge
-from app.models.judge_assignment import JudgeAssignment
 from app.models.project import Project
 from app.models.rubric import Rubric
 from app.models.rubric_criterion import RubricCriterion
-from app.models.score import Score
 from app.models.user import User
 
 EVENT_ID = "evt-2026-symposium"
 
 
-async def seed_database(db: AsyncSession) -> None:
-    """Populate database with dev data. Idempotent — skips if data exists."""
-    existing = await db.execute(select(Event).limit(1))
+async def ensure_admin(db: AsyncSession) -> None:
+    """Create default admin user if none exists. Runs in all environments."""
+    existing = await db.execute(select(User).where(User.Role == "admin").limit(1))
     if existing.scalar():
         return
 
-    # --- Admin user ---
     admin = User(
         User_ID=str(uuid.uuid4()),
         Username="admin",
@@ -33,6 +31,28 @@ async def seed_database(db: AsyncSession) -> None:
         Role="admin",
     )
     db.add(admin)
+    await db.commit()
+
+
+def _make_access_code(name: str, index: int) -> str:
+    """Generate a deterministic 6-char alphanumeric access code."""
+    raw = hashlib.sha256(f"{name}-{index}-2026symposium".encode()).hexdigest()
+    code = ""
+    for ch in raw.upper():
+        if ch.isalpha() and len([c for c in code if c.isalpha()]) < 3:
+            code += ch
+        elif ch.isdigit() and len([c for c in code if c.isdigit()]) < 3:
+            code += ch
+        if len(code) == 6:
+            break
+    return code
+
+
+async def seed_database(db: AsyncSession) -> None:
+    """Populate database with real 2026 symposium data. Idempotent."""
+    existing = await db.execute(select(Event).limit(1))
+    if existing.scalar():
+        return
 
     # --- Event ---
     event = Event(
@@ -132,148 +152,126 @@ async def seed_database(db: AsyncSession) -> None:
             )
         )
 
-    # --- Sample Projects ---
-    poster_projects = [
-        ("P-01", "Impact of Climate Change on Idaho Salmon Populations", "Jane", "Smith", "Biology", "COSDA", "Dr. Rivera"),
-        ("P-02", "Machine Learning for Crop Disease Detection", "Michael", "Chen", "Computer Science", "CoE", "Dr. Patel"),
-        ("P-03", "Novel Catalysts for Green Hydrogen Production", "Sarah", "Johnson", "Chemistry", "COSDA", "Dr. Kim"),
-        ("P-04", "Anxiety Interventions in Rural College Students", "David", "Williams", "Psychology", "COSDA", "Dr. Thompson"),
-        ("P-05", "Seismic Resilience of Idaho Bridge Infrastructure", "Maria", "Garcia", "Civil Engineering", "CoE", "Dr. Anderson"),
-        ("P-06", "Wildfire Risk Modeling in the Inland Northwest", "James", "Brown", "Natural Resources", "CNR", "Dr. Harrison"),
-        ("P-07", "CRISPR Applications in Lentil Crop Improvement", "Emily", "Davis", "Plant Sciences", "CALS", "Dr. Wilson"),
-        ("P-08", "Water Quality Assessment of the Palouse Basin", "Robert", "Martinez", "Environmental Science", "COSDA", "Dr. Lee"),
-        ("P-09", "Nez Perce Language Revitalization Through Technology", "Lisa", "Taylor", "Education", "CoEd", "Dr. Whitman"),
-        ("P-10", "Economic Impact of Remote Work on Rural Communities", "Kevin", "Anderson", "Economics", "CBE", "Dr. Foster"),
+    # =====================================================================
+    # Real presenter data from "GPSA Expo - Workbook - 2026 COPY.xlsx"
+    # =====================================================================
+
+    # Poster presenters (27 accepted)
+    # (first, last, email, program, authors)
+    poster_presenters = [
+        ("Sameer", "Mankotia", "mank8837@vandals.uidaho.edu", "Computer Science", "Sameer Mankotia, Daniel Conte De Leon, Jennifer Johnson-Leung"),
+        ("Nate", "Nadal", "nnadal@uidaho.edu", "Natural Resources - Fish & Wildlife", "Nate Nadal"),
+        ("Andrea", "Schmutz", "schm8894@vandals.uidaho.edu", "Education", "Andrea Soleta Schmutz, Juhee Kim"),
+        ("Sahithi", "Thota", "thot8631@vandals.uidaho.edu", "Electrical Engineering", "Sahithi Thota"),
+        ("Japneet", "Kukal", "kuka9993@vandals.uidaho.edu", "Natural Resources", "Japneet Kukal, Lorena A. Portilla, Brian Via, Lucila M. Carias, Maria Auad, Manish Sakhakarmy, Sushil Adhikari, Armando G. McDonald"),
+        ("Ruth", "Azike", "azik3672@vandals.uidaho.edu", "Environmental Science", "Azike Ruth Chinazor, Armando McDonald, Ezra Bar-Ziv"),
+        ("Sodiq", "Yusuf", "yusu5902@vandals.uidaho.edu", "Natural Resources", "Sodiq Yusuf, Michael Maughan, Armando McDonald"),
+        ("Marilyn", "Stein", "stei0434@vandals.uidaho.edu", "Nutritional Sciences", "Marilyn Stein, Yimin Chen, Ann Frost"),
+        ("Edison", "Reyes Proano", "reye0766@vandals.uidaho.edu", "Plant Science", "Edison Reyes-Proano, Gardenia E. Orellana, Jeffrey Chojnacky, Apekshya Senchuri, Erik J. Wenninger, Alexander V. Karasev"),
+        ("Emmanuella", "Afolabi", "afol9291@vandals.uidaho.edu", "Anthropology", "Emmanuella Afolabi"),
+        ("Keeya", "Beausoleil", "beau4371@vandals.uidaho.edu", "Geology", "Keeya Beausoleil, Timothy Bartholomaus, Alison Criscitiello, Eric Mittelstaedt, Elowyn Yager"),
+        ("Ashton", "Sellke", "sell9149@vandals.uidaho.edu", "Plant Science", "Ashton Sellke, Timothy Prather"),
+        ("Yuan", "Yuan", "yuan8150@vandals.uidaho.edu", "Biological Engineering", "Yuan Yuan"),
+        ("Shahriar Md Arifur", "Rahman", "rahm8493@vandals.uidaho.edu", "Environmental Science", "Shahriar Md Arifur Rahman, Chris A.B. Zajchowski, Muhammad Moniruzzaman, Joohee Lee, Hana Kim"),
+        ("Jacob", "Spickelmire", "spic6711@vandals.uidaho.edu", "English", "Jacob Spickelmire"),
+        ("Ariana", "Cerreta", "cerr0733@vandals.uidaho.edu", "Natural Resources", "Ariana L. Cerreta, David E. Ausband"),
+        ("Hannah", "Stolfus", "stol5899@vandals.uidaho.edu", "Agricultural Education", "Hannah Stolfus"),
+        ("Timothy", "Stevens", "stev1754@vandals.uidaho.edu", "Mechanical Engineering", "Daniel Robertson, Timothy Stevens"),
+        ("Evelyn", "Roldan Vernon", "rold1482@vandals.uidaho.edu", "Nutritional Sciences", "Evelyn Roldán Vernon, Wilton Pérez, Ginny Lane"),
+        ("Isaac", "Looney", "loon1344@vandals.uidaho.edu", "Mechanical Engineering", "Isaac Looney, Daniel Robertson"),
+        ("Hussain", "Qazaq", "qaza0118@vandals.uidaho.edu", "Nutritional Sciences", "Ginny Lane, Hussain Qazaq"),
+        ("Leela", "Appili", "appi5393@vandals.uidaho.edu", "Plant Science", "Leela Appili"),
+        ("Alireza", "Majidi", "maji2418@vandals.uidaho.edu", "Nutritional Sciences", "Alireza Majidi, Edris Afsharkohan, Mahdi Hejazi, Mojtaba Shafiee"),
+        ("Benjamin", "Morenas", "more6244@vandals.uidaho.edu", "Biological Engineering", "Benjamin Morenas, Ekow Agyekum-Oduro, Alia Nasir, Yuan Yuan, Sarah Wu"),
+        ("Ahmad", "Mukhtar", "mukh9219@vandals.uidaho.edu", "Chemical Engineering", "Ahmad Mukhtar, Yuan Yuan, Jonathan Stromberg, Ben Morenas, Sarah Wu"),
+        ("Ekow", "Agyekum-Oduro", "agye3445@vandals.uidaho.edu", "Chemical Engineering", "Ekow Agyekum-Oduro, Ahmad Mukhtar, Sidra Saqib, Robinson Ndeddy Aka, Sarah Wu"),
+        ("Alia", "Nasir", "nasi9466@vandals.uidaho.edu", "Biological Engineering", "Alia Nasir, Benjamin Morenas, Dinithi Mohotti, Ekow Agyekum-Oduro, Sarah Wu"),
     ]
 
-    project_ids = []
-    for num, title, first, last, dept, college, advisor in poster_projects:
-        pid = str(uuid.uuid4())
-        project_ids.append(pid)
+    for i, (first, last, email, dept, authors) in enumerate(poster_presenters, start=1):
+        num = f"P-{i:02d}"
         db.add(
             Project(
-                Project_ID=pid,
+                Project_ID=str(uuid.uuid4()),
                 Event_ID=EVENT_ID,
                 Project_Number=num,
-                Project_Title=title,
+                Project_Title=f"{first} {last} — {dept}",
                 Presenter_First_Name=first,
                 Presenter_Last_Name=last,
+                Presenter_Email=email,
                 Department=dept,
-                College=college,
-                Advisor_Name=advisor,
+                College=None,
+                Advisor_Name=authors,
                 Category="Poster",
-                Table_Number=f"T-{num[2:]}",
+                Table_Number=f"T-{i:02d}",
             )
         )
 
-    art_projects = [
-        ("A-01", "Reflections on Rural Identity", "Alex", "Rivera", "Art & Architecture", "CAA", "Prof. Morgan"),
-        ("A-02", "Palouse Landscapes in Mixed Media", "Jordan", "Lee", "Art & Architecture", "CAA", "Prof. Chen"),
-        ("A-03", "Digital Narratives of Migration", "Sam", "Patel", "Art & Architecture", "CAA", "Prof. Rivera"),
-        ("A-04", "Sound and Space: An Interactive Installation", "Taylor", "Kim", "Music", "CLASS", "Prof. Adams"),
-        ("A-05", "Ceramic Forms Inspired by Idaho Geology", "Morgan", "White", "Art & Architecture", "CAA", "Prof. Stone"),
+    # Art presenters (3 accepted)
+    art_presenters = [
+        ("Luna", "Migueles Miralles", "Migu3546@vandals.uidaho.edu", "Art", "Luna Migueles Miralles"),
+        ("Paige", "O'Callaghan", "ocal7704@vandals.uidaho.edu", "Theatre Arts", "Paige O'Callaghan"),
+        ("Kyle", "Silligman", "sill5899@vandals.uidaho.edu", "Art", "Kyle Silligman"),
     ]
 
-    art_project_ids = []
-    for num, title, first, last, dept, college, advisor in art_projects:
-        pid = str(uuid.uuid4())
-        art_project_ids.append(pid)
+    for i, (first, last, email, dept, authors) in enumerate(art_presenters, start=1):
+        num = f"A-{i:02d}"
         db.add(
             Project(
-                Project_ID=pid,
+                Project_ID=str(uuid.uuid4()),
                 Event_ID=EVENT_ID,
                 Project_Number=num,
-                Project_Title=title,
+                Project_Title=f"{first} {last} — {dept}",
                 Presenter_First_Name=first,
                 Presenter_Last_Name=last,
+                Presenter_Email=email,
                 Department=dept,
-                College=college,
-                Advisor_Name=advisor,
+                College=None,
+                Advisor_Name=authors,
                 Category="Art",
-                Table_Number=f"T-A{num[2:]}",
+                Table_Number=f"T-A{i:02d}",
             )
         )
 
-    # --- Sample Judges ---
+    # =====================================================================
+    # Real judge data from "GPSA Expo - Workbook - 2026 COPY.xlsx"
+    # (Final List column)
+    # =====================================================================
+
     judges_data = [
-        ("Dr. Patricia", "Hernandez", "Biology", "HRN47K"),
-        ("Dr. Thomas", "Wright", "Computer Science", "WRT82M"),
-        ("Dr. Nancy", "Park", "Chemistry", "PRK35N"),
-        ("Prof. Richard", "Cole", "Art & Architecture", "CLE69R"),
-        ("Dr. Sandra", "Murphy", "Psychology", "MRP24S"),
+        ("Barrie", "Robison", "brobison@uidaho.edu", "IIDS, IMCI - COS"),
+        ("Beth", "Ropski", "eropski@uidaho.edu", "CETL - EHHS"),
+        ("Jennifer", "Wilcox", "jwilcox@uidaho.edu", "Biology"),
+        ("Aaron", "Johnson", "acjohnson@uidaho.edu", "Art & Architecture"),
+        ("Michael", "Brandt", "brandt@uidaho.edu", "Theatre Arts"),
+        ("Ann", "Frost", "afrost@uidaho.edu", "EHHS"),
+        ("Margaret", "Pinnell", "mpinnell@uidaho.edu", "CETL"),
+        ("Brian", "Tibayan", "btibayan@uidaho.edu", "EHHS"),
+        ("Ginny", "Lane", "vlane@uidaho.edu", "Nutritional Sciences"),
+        ("Ginger", "Carney", None, "COS"),
+        ("Herbert", "Hess", "hhess@uidaho.edu", "Electrical & Computer Engineering"),
+        ("Rowdy", "Sanford", None, "Electrical & Computer Engineering"),
+        ("Tracey", "Peters", "tpeters@uidaho.edu", "Animal, Veterinary & Food Science"),
+        ("Phillip", "Hagen", None, "GPSA"),
+        ("Ritchie", "Thaxton", None, "GPSA"),
+        ("Rita", "Franco", None, "GPSA"),
+        ("KT", "Turner", None, "GPSA"),
+        ("Zachary", "Foley", None, "GPSA"),
+        ("Rafiatu", "Salia", None, "GPSA"),
     ]
 
-    judge_ids = []
-    for first, last, dept, code in judges_data:
-        jid = str(uuid.uuid4())
-        judge_ids.append(jid)
+    for i, (first, last, email, dept) in enumerate(judges_data):
+        code = _make_access_code(f"{first}{last}", i)
         db.add(
             Judge(
-                Judge_ID=jid,
+                Judge_ID=str(uuid.uuid4()),
                 Event_ID=EVENT_ID,
                 First_Name=first,
                 Last_Name=last,
+                Email=email,
                 Department=dept,
                 Access_Code=code,
             )
         )
-
-    await db.flush()
-
-    # --- Sample Scores (judges 0-2 scoring poster projects 0-3) ---
-    # Get poster rubric criteria IDs
-    crit_result = await db.execute(
-        select(RubricCriterion)
-        .where(RubricCriterion.Rubric_ID == poster_rubric_id)
-        .order_by(RubricCriterion.Sort_Order)
-    )
-    poster_crits = crit_result.scalars().all()
-
-    art_crit_result = await db.execute(
-        select(RubricCriterion)
-        .where(RubricCriterion.Rubric_ID == art_rubric_id)
-        .order_by(RubricCriterion.Sort_Order)
-    )
-    art_crits = art_crit_result.scalars().all()
-
-    import random
-
-    random.seed(42)
-
-    # 3 judges score 4 poster projects each
-    for j_idx in range(3):
-        for p_idx in range(4):
-            for crit in poster_crits:
-                db.add(
-                    Score(
-                        Judge_ID=judge_ids[j_idx],
-                        Project_ID=project_ids[p_idx],
-                        Criterion_ID=crit.Criterion_ID,
-                        Score_Value=random.randint(1, 3),
-                    )
-                )
-
-    # 2 judges score 2 art projects each
-    for j_idx in range(3, 5):
-        for p_idx in range(2):
-            for crit in art_crits:
-                db.add(
-                    Score(
-                        Judge_ID=judge_ids[j_idx],
-                        Project_ID=art_project_ids[p_idx],
-                        Criterion_ID=crit.Criterion_ID,
-                        Score_Value=random.randint(1, 3),
-                    )
-                )
-
-    # --- Sample Assignments ---
-    for j_idx in range(3):
-        for p_idx in range(2):
-            db.add(
-                JudgeAssignment(
-                    Judge_ID=judge_ids[j_idx],
-                    Project_ID=project_ids[p_idx],
-                )
-            )
 
     await db.commit()

@@ -24,6 +24,6 @@ class Event(Base):
     )
     Created_At: Mapped[datetime.datetime] = mapped_column(
         sa.DateTime,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.utcnow(),
         server_default=sa.func.now(),
     )

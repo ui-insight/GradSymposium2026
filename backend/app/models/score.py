@@ -26,7 +26,7 @@ class Score(Base):
     Score_Value: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     Scored_At: Mapped[datetime.datetime] = mapped_column(
         sa.DateTime,
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.utcnow(),
         server_default=sa.func.now(),
     )
 
@@ -42,6 +42,6 @@ class Score(Base):
             name="uq_score_per_judge_project_criterion",
         ),
         sa.CheckConstraint(
-            "Score_Value >= 0 AND Score_Value <= 3", name="ck_score_range"
+            "\"Score_Value\" >= 0 AND \"Score_Value\" <= 3", name="ck_score_range"
         ),
     )

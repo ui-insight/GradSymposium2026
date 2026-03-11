@@ -39,5 +39,5 @@ class Project(Base):
         sa.UniqueConstraint(
             "Event_ID", "Project_Number", name="uq_project_number_per_event"
         ),
-        sa.CheckConstraint("Category IN ('Poster', 'Art')", name="ck_project_category"),
+        sa.CheckConstraint("\"Category\" IN ('Poster', 'Art')", name="ck_project_category"),
     )

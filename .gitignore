@@ -15,6 +15,8 @@ dist/
 
 # Environment
 .env
+.env.prod
+.env.dev
 *.env.local
 
 # OS

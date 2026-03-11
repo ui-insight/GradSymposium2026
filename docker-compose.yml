@@ -1,14 +1,13 @@
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-gpsa}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gpsa}
       POSTGRES_DB: ${POSTGRES_DB:-gpsa}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gpsa}"]
       interval: 5s
@@ -19,8 +18,7 @@ services:
 
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     environment:
       GPSA_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-gpsa}:${POSTGRES_PASSWORD:-gpsa}@db:5432/${POSTGRES_DB:-gpsa}
       GPSA_SECRET_KEY: ${GPSA_SECRET_KEY:-dev-secret-change-in-production}
@@ -34,6 +32,7 @@ services:
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "${HOST_PORT:-8080}:80"
     depends_on:
@@ -47,3 +46,6 @@ volumes:
 networks:
   gpsa-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-10.94.0.0/24}
