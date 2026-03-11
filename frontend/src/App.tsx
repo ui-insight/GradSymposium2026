@@ -8,6 +8,7 @@ import { ProjectsPage } from './pages/admin/ProjectsPage'
 import { JudgesPage } from './pages/admin/JudgesPage'
 import { RubricsPage } from './pages/admin/RubricsPage'
 import { ResultsPage } from './pages/admin/ResultsPage'
+import { AssignmentsPage } from './pages/admin/AssignmentsPage'
 import { JudgeLoginPage } from './pages/judge/JudgeLoginPage'
 import { JudgeProjectListPage } from './pages/judge/JudgeProjectListPage'
 import { JudgeScoringPage } from './pages/judge/JudgeScoringPage'
@@ -29,6 +30,7 @@ function App() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="judges" element={<JudgesPage />} />
+        <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="rubrics" element={<RubricsPage />} />
         <Route path="results" element={<ResultsPage />} />
       </Route>

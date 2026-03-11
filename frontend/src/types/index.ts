@@ -121,6 +121,14 @@ export interface AccessCodeCard {
   Access_Code: string;
 }
 
+export interface Assignment {
+  Assignment_ID: number;
+  Judge_ID: string;
+  Project_ID: string;
+  Project_Number: string | null;
+  Project_Title: string | null;
+}
+
 export interface CSVImportResult {
   imported: number;
   skipped: number;

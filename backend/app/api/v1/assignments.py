@@ -95,6 +95,24 @@ async def bulk_create_assignments(
     ]
 
 
+@router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_assignments(
+    event_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Remove all assignments for an event."""
+    result = await db.execute(
+        select(JudgeAssignment)
+        .join(Project, JudgeAssignment.Project_ID == Project.Project_ID)
+        .where(Project.Event_ID == event_id)
+    )
+    assignments = result.scalars().all()
+    for a in assignments:
+        await db.delete(a)
+    await db.commit()
+
+
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_assignment(
     assignment_id: int,
