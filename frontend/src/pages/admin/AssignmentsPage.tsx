@@ -115,7 +115,7 @@ export function AssignmentsPage() {
   }
 
   const filteredProjects = projects
-    .filter(p => !filter || p.Category === filter)
+    .filter(p => p.Is_Active && (!filter || p.Category === filter))
     .sort((a, b) => a.Project_Number.localeCompare(b.Project_Number, undefined, { numeric: true }));
 
   // Compute totals
@@ -209,17 +209,25 @@ export function AssignmentsPage() {
                 <th className="sticky left-[160px] z-20 bg-gray-50 px-2 py-2 text-center font-medium text-gray-500 w-12 border-r border-gray-200">
                   #
                 </th>
-                {filteredProjects.map(p => (
-                  <th
-                    key={p.Project_ID}
-                    className="px-0.5 py-2 text-center font-medium text-gray-500 min-w-[40px]"
-                    title={`${p.Project_Number}: ${p.Presenter_First_Name} ${p.Presenter_Last_Name}`}
-                  >
-                    <div className="[writing-mode:vertical-lr] rotate-180 mx-auto whitespace-nowrap text-[10px] h-16 flex items-center justify-center">
-                      {p.Project_Number}
-                    </div>
-                  </th>
-                ))}
+                {filteredProjects.map(p => {
+                  const count = projectCounts.get(p.Project_ID) || 0;
+                  const headerColor = count < judgesPerProject
+                    ? 'text-amber-600'
+                    : count === judgesPerProject
+                      ? 'text-green-600'
+                      : 'text-gray-500';
+                  return (
+                    <th
+                      key={p.Project_ID}
+                      className={`px-0.5 py-2 text-center font-medium min-w-[40px] ${headerColor}`}
+                      title={`${p.Project_Number}: ${p.Presenter_First_Name} ${p.Presenter_Last_Name} (${count}/${judgesPerProject} judges)`}
+                    >
+                      <div className="[writing-mode:vertical-lr] rotate-180 mx-auto whitespace-nowrap text-[10px] h-16 flex items-center justify-center">
+                        {p.Project_Number}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -258,11 +266,21 @@ export function AssignmentsPage() {
                 <td className="sticky left-[160px] z-10 bg-gray-50 px-2 py-2 text-center font-mono text-gray-500 border-r border-gray-200">
                   &Sigma;
                 </td>
-                {filteredProjects.map(p => (
-                  <td key={p.Project_ID} className="px-0.5 py-2 text-center font-mono text-gray-500">
-                    {projectCounts.get(p.Project_ID) || 0}
-                  </td>
-                ))}
+                {filteredProjects.map(p => {
+                  const count = projectCounts.get(p.Project_ID) || 0;
+                  const colorClass = count === 0
+                    ? 'text-gray-400'
+                    : count < judgesPerProject
+                      ? 'text-amber-600 font-bold'
+                      : count === judgesPerProject
+                        ? 'text-green-600 font-bold'
+                        : 'text-blue-600 font-bold';
+                  return (
+                    <td key={p.Project_ID} className={`px-0.5 py-2 text-center font-mono ${colorClass}`}>
+                      {count}
+                    </td>
+                  );
+                })}
               </tr>
             </tfoot>
           </table>
