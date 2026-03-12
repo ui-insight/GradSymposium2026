@@ -106,6 +106,7 @@ export interface JudgeProjectDetail {
   Table_Number: string | null;
   rubric: Rubric | null;
   existing_scores: Record<number, number>;
+  existing_feedback: string | null;
 }
 
 export interface JudgeMe {

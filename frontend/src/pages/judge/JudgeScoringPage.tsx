@@ -23,6 +23,7 @@ export function JudgeScoringPage() {
   const [detail, setDetail] = useState<JudgeProjectDetail | null>(null);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -33,6 +34,7 @@ export function JudgeScoringPage() {
       const d = await apiFetch<JudgeProjectDetail>(`/judge/projects/${projectId}`);
       setDetail(d);
       setScores(d.existing_scores || {});
+      setFeedback(d.existing_feedback || '');
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }
@@ -51,7 +53,7 @@ export function JudgeScoringPage() {
       }));
       await apiFetch(`/judge/projects/${projectId}/scores`, {
         method: 'POST',
-        body: JSON.stringify({ scores: scoreEntries }),
+        body: JSON.stringify({ scores: scoreEntries, feedback: feedback || null }),
       });
       setSubmitted(true);
     } catch (err) {
@@ -155,6 +157,20 @@ export function JudgeScoringPage() {
           </div>
         </div>
       ))}
+
+      {/* Optional feedback */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <label className="text-sm font-medium text-gray-700 block mb-2">
+          Feedback for Presenter <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={feedback}
+          onChange={e => setFeedback(e.target.value)}
+          placeholder="Any comments or suggestions for the presenter..."
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
 
       {/* Fixed bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between">

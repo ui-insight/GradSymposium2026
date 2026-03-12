@@ -1,6 +1,7 @@
 """Import all models so Alembic / create_all sees them."""
 
 from app.models.event import Event  # noqa: F401
+from app.models.feedback import Feedback  # noqa: F401
 from app.models.judge import Judge  # noqa: F401
 from app.models.judge_assignment import JudgeAssignment  # noqa: F401
 from app.models.project import Project  # noqa: F401

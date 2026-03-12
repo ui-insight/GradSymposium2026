@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_judge, get_db
 from app.auth.jwt import create_access_token
+from app.models.feedback import Feedback
 from app.models.judge import Judge
 from app.models.judge_assignment import JudgeAssignment
 from app.models.project import Project
@@ -133,6 +134,15 @@ async def judge_project_detail(
     )
     existing_scores = {s.Criterion_ID: s.Score_Value for s in score_result.scalars().all()}
 
+    # Get existing feedback
+    fb_result = await db.execute(
+        select(Feedback).where(
+            Feedback.Judge_ID == judge.Judge_ID,
+            Feedback.Project_ID == project_id,
+        )
+    )
+    existing_feedback = fb_result.scalar_one_or_none()
+
     rubric_data = None
     if rubric:
         rubric_data = {
@@ -164,6 +174,7 @@ async def judge_project_detail(
         "Table_Number": project.Table_Number,
         "rubric": rubric_data,
         "existing_scores": existing_scores,
+        "existing_feedback": existing_feedback.Feedback_Text if existing_feedback else None,
     }
 
 
@@ -206,6 +217,26 @@ async def submit_scores(
                     Project_ID=project_id,
                     Criterion_ID=entry.Criterion_ID,
                     Score_Value=entry.Score_Value,
+                )
+            )
+
+    # Save optional feedback
+    if body.feedback and body.feedback.strip():
+        fb_existing = await db.execute(
+            select(Feedback).where(
+                Feedback.Judge_ID == judge.Judge_ID,
+                Feedback.Project_ID == project_id,
+            )
+        )
+        fb = fb_existing.scalar_one_or_none()
+        if fb:
+            fb.Feedback_Text = body.feedback.strip()
+        else:
+            db.add(
+                Feedback(
+                    Judge_ID=judge.Judge_ID,
+                    Project_ID=project_id,
+                    Feedback_Text=body.feedback.strip(),
                 )
             )
 

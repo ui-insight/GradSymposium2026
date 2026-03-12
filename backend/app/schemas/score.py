@@ -16,6 +16,7 @@ class ScoreSubmission(BaseModel):
     """All criterion scores for a project, submitted by a judge."""
 
     scores: list[ScoreEntry]
+    feedback: str | None = None
 
 
 class ScoreRead(BaseModel):
