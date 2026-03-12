@@ -37,19 +37,21 @@ export function JudgeProjectListPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-2">Projects to Score</h1>
+      <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-xl">
+        Projects to Score
+      </h1>
 
       {assigned.length > 0 && (
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="mb-4 text-base text-gray-500 sm:text-sm">
           {scoredCount} of {assigned.length} assigned projects scored
         </p>
       )}
 
       {/* View toggle */}
-      <div className="flex gap-2 mb-4">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
           onClick={() => setView('assigned')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+          className={`rounded-full px-4 py-2 text-base font-medium transition-colors sm:px-3 sm:py-1.5 sm:text-sm ${
             view === 'assigned'
               ? 'bg-blue-100 text-blue-700'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -59,7 +61,7 @@ export function JudgeProjectListPage() {
         </button>
         <button
           onClick={() => setView('all')}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+          className={`rounded-full px-4 py-2 text-base font-medium transition-colors sm:px-3 sm:py-1.5 sm:text-sm ${
             view === 'all'
               ? 'bg-blue-100 text-blue-700'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -74,7 +76,7 @@ export function JudgeProjectListPage() {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Search projects..."
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:py-2 sm:text-sm"
       />
 
       <div className="space-y-2">
@@ -94,27 +96,31 @@ function ProjectCard({ project: p }: { project: JudgeProject }) {
   return (
     <Link
       to={`/judge/projects/${p.Project_ID}`}
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-300 transition-colors"
+      className="block rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-blue-300 sm:p-4"
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg font-mono font-bold text-gray-900">{p.Project_Number}</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+            <span className="text-xl font-mono font-bold text-gray-900 sm:text-lg">
+              {p.Project_Number}
+            </span>
+            <span className={`rounded-full px-2 py-1 text-sm font-medium sm:py-0.5 sm:text-xs ${
               p.Category === 'Art' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
             }`}>{p.Category}</span>
             {p.is_scored && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Scored</span>
+              <span className="rounded-full bg-green-100 px-2 py-1 text-sm font-medium text-green-700 sm:py-0.5 sm:text-xs">
+                Scored
+              </span>
             )}
           </div>
-          <p className="text-sm text-gray-700 truncate">{p.Project_Title}</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="truncate text-base text-gray-700 sm:text-sm">{p.Project_Title}</p>
+          <p className="mt-1 text-sm text-gray-500 sm:text-xs">
             {p.Presenter_First_Name} {p.Presenter_Last_Name}
             {p.Department && ` — ${p.Department}`}
           </p>
         </div>
         {p.Table_Number && (
-          <span className="text-xs text-gray-400 ml-2">{p.Table_Number}</span>
+          <span className="ml-2 text-sm text-gray-400 sm:text-xs">{p.Table_Number}</span>
         )}
       </div>
     </Link>

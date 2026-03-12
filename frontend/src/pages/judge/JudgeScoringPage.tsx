@@ -101,24 +101,28 @@ export function JudgeScoringPage() {
   });
 
   return (
-    <div className="pb-24">
+    <div className="pb-28">
       {/* Project header */}
       <button
         onClick={() => navigate('/judge/projects')}
-        className="text-sm text-blue-600 mb-3 flex items-center gap-1"
+        className="mb-3 flex items-center gap-1 text-base text-blue-600 sm:text-sm"
       >
         ← Back to projects
       </button>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="mb-5 rounded-xl border border-gray-200 bg-white p-5 sm:mb-4 sm:p-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-lg font-mono font-bold">{detail.Project_Number}</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          <span className="text-2xl font-mono font-bold sm:text-lg">
+            {detail.Project_Number}
+          </span>
+          <span className={`rounded-full px-2 py-1 text-sm font-medium sm:py-0.5 sm:text-xs ${
             detail.Category === 'Art' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
           }`}>{detail.Category}</span>
         </div>
-        <h2 className="text-base font-semibold text-gray-900">{detail.Project_Title}</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-gray-900 sm:text-base">
+          {detail.Project_Title}
+        </h2>
+        <p className="text-base text-gray-500 sm:text-sm">
           {detail.Presenter_First_Name} {detail.Presenter_Last_Name}
           {detail.Department && ` — ${detail.Department}`}
         </p>
@@ -128,27 +132,36 @@ export function JudgeScoringPage() {
       {Object.entries(groups).map(([groupName, groupCriteria]) => (
         <div key={groupName} className="mb-4">
           {groupName !== 'General' && (
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <h3 className="mb-2 text-base font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">
               {groupName}
             </h3>
           )}
-          <div className="space-y-3">
+          <div className="space-y-4 sm:space-y-3">
             {groupCriteria.map(c => (
-              <div key={c.Criterion_ID} className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-sm font-medium text-gray-800 mb-3">{c.Criterion_Name}</p>
-                <div className="grid grid-cols-4 gap-2">
+              <div
+                key={c.Criterion_ID}
+                className="rounded-xl border border-gray-200 bg-white p-4 sm:p-4"
+              >
+                <p className="mb-3 text-base font-medium text-gray-800 sm:text-sm">
+                  {c.Criterion_Name}
+                </p>
+                <div className="grid grid-cols-4 gap-2.5 sm:gap-2">
                   {[0, 1, 2, 3].map(val => (
                     <button
                       key={val}
                       onClick={() => setScore(c.Criterion_ID, val)}
-                      className={`py-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                      className={`min-h-20 rounded-lg border-2 px-1 py-3 text-base font-medium transition-all sm:min-h-16 sm:text-sm ${
                         scores[c.Criterion_ID] === val
                           ? SCORE_SELECTED[val]
                           : SCORE_COLORS[val]
                       }`}
                     >
-                      <div className="text-lg font-bold">{val}</div>
-                      <div className="text-[10px] opacity-75">{SCORE_LABELS[val]}</div>
+                      <div className="text-2xl font-bold leading-none sm:text-lg">
+                        {val}
+                      </div>
+                      <div className="mt-1 text-xs opacity-75 sm:text-[10px]">
+                        {SCORE_LABELS[val]}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -159,8 +172,8 @@ export function JudgeScoringPage() {
       ))}
 
       {/* Optional feedback */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <label className="text-sm font-medium text-gray-700 block mb-2">
+      <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+        <label className="mb-2 block text-base font-medium text-gray-700 sm:text-sm">
           Feedback for Presenter <span className="text-gray-400 font-normal">(optional)</span>
         </label>
         <textarea
@@ -168,20 +181,22 @@ export function JudgeScoringPage() {
           onChange={e => setFeedback(e.target.value)}
           placeholder="Any comments or suggestions for the presenter..."
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-3 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:py-2 sm:text-sm"
         />
       </div>
 
       {/* Fixed bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="fixed bottom-0 left-0 right-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-4">
         <div>
-          <span className="text-2xl font-bold text-gray-900">{totalScore}</span>
-          <span className="text-sm text-gray-400"> / {maxScore}</span>
+          <span className="text-3xl font-bold text-gray-900 sm:text-2xl">
+            {totalScore}
+          </span>
+          <span className="text-base text-gray-400 sm:text-sm"> / {maxScore}</span>
         </div>
         <button
           onClick={handleSubmit}
           disabled={!allScored || submitting}
-          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:px-8 sm:py-3 sm:text-sm"
         >
           {submitting ? 'Submitting...' : 'Submit Scores'}
         </button>

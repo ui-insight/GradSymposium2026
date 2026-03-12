@@ -17,6 +17,19 @@ from app.models.user import User
 
 EVENT_ID = "evt-2026-symposium"
 
+SPECIAL_POSTER_PROJECT = {
+    "Project_Number": "P-28",
+    "Project_Title": "Md Sayed Hasan - Animal Science",
+    "Presenter_First_Name": "Md Sayed",
+    "Presenter_Last_Name": "Hasan",
+    "Presenter_Email": None,
+    "Department": "Animal Science",
+    "College": None,
+    "Advisor_Name": "Md Sayed Hasan",
+    "Category": "Poster",
+    "Table_Number": "T-28",
+}
+
 
 async def ensure_admin(db: AsyncSession) -> None:
     """Create default admin user if none exists. Runs in all environments."""
@@ -32,6 +45,42 @@ async def ensure_admin(db: AsyncSession) -> None:
     )
     db.add(admin)
     await db.commit()
+
+
+async def ensure_special_projects(db: AsyncSession) -> None:
+    """Ensure late roster additions exist in already-seeded databases."""
+    result = await db.execute(
+        select(Project).where(
+            Project.Event_ID == EVENT_ID,
+            Project.Project_Number == SPECIAL_POSTER_PROJECT["Project_Number"],
+        )
+    )
+    project = result.scalar_one_or_none()
+
+    if project is None:
+        db.add(
+            Project(
+                Project_ID=str(uuid.uuid4()),
+                Event_ID=EVENT_ID,
+                Is_Active=True,
+                **SPECIAL_POSTER_PROJECT,
+            )
+        )
+        await db.commit()
+        return
+
+    changed = False
+    for field, value in SPECIAL_POSTER_PROJECT.items():
+        if getattr(project, field) != value:
+            setattr(project, field, value)
+            changed = True
+
+    if not project.Is_Active:
+        project.Is_Active = True
+        changed = True
+
+    if changed:
+        await db.commit()
 
 
 def _make_access_code(name: str, index: int) -> str:
@@ -52,6 +101,7 @@ async def seed_database(db: AsyncSession) -> None:
     """Populate database with real 2026 symposium data. Idempotent."""
     existing = await db.execute(select(Event).limit(1))
     if existing.scalar():
+        await ensure_special_projects(db)
         return
 
     # --- Event ---
@@ -156,7 +206,7 @@ async def seed_database(db: AsyncSession) -> None:
     # Real presenter data from "GPSA Expo - Workbook - 2026 COPY.xlsx"
     # =====================================================================
 
-    # Poster presenters (27 accepted)
+    # Poster presenters (28 accepted)
     # (first, last, email, program, authors)
     poster_presenters = [
         ("Sameer", "Mankotia", "mank8837@vandals.uidaho.edu", "Computer Science", "Sameer Mankotia, Daniel Conte De Leon, Jennifer Johnson-Leung"),
@@ -186,16 +236,26 @@ async def seed_database(db: AsyncSession) -> None:
         ("Ahmad", "Mukhtar", "mukh9219@vandals.uidaho.edu", "Chemical Engineering", "Ahmad Mukhtar, Yuan Yuan, Jonathan Stromberg, Ben Morenas, Sarah Wu"),
         ("Ekow", "Agyekum-Oduro", "agye3445@vandals.uidaho.edu", "Chemical Engineering", "Ekow Agyekum-Oduro, Ahmad Mukhtar, Sidra Saqib, Robinson Ndeddy Aka, Sarah Wu"),
         ("Alia", "Nasir", "nasi9466@vandals.uidaho.edu", "Biological Engineering", "Alia Nasir, Benjamin Morenas, Dinithi Mohotti, Ekow Agyekum-Oduro, Sarah Wu"),
+        (
+            "Md Sayed",
+            "Hasan",
+            None,
+            "Animal Science",
+            "Md Sayed Hasan",
+        ),
     ]
 
     for i, (first, last, email, dept, authors) in enumerate(poster_presenters, start=1):
         num = f"P-{i:02d}"
+        title = f"{first} {last} — {dept}"
+        if num == SPECIAL_POSTER_PROJECT["Project_Number"]:
+            title = SPECIAL_POSTER_PROJECT["Project_Title"]
         db.add(
             Project(
                 Project_ID=str(uuid.uuid4()),
                 Event_ID=EVENT_ID,
                 Project_Number=num,
-                Project_Title=f"{first} {last} — {dept}",
+                Project_Title=title,
                 Presenter_First_Name=first,
                 Presenter_Last_Name=last,
                 Presenter_Email=email,
