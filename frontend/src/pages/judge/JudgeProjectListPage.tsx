@@ -7,6 +7,7 @@ export function JudgeProjectListPage() {
   const [projects, setProjects] = useState<JudgeProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'assigned' | 'all'>('assigned');
 
   useEffect(() => { loadData(); }, []);
 
@@ -29,13 +30,44 @@ export function JudgeProjectListPage() {
   });
 
   const assigned = filtered.filter(p => p.is_assigned);
-  const others = filtered.filter(p => !p.is_assigned);
+  const displayProjects = view === 'assigned' ? assigned : filtered;
+  const scoredCount = assigned.filter(p => p.is_scored).length;
 
   if (loading) return <div className="text-center py-8 text-gray-500">Loading projects...</div>;
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-4">Projects to Score</h1>
+      <h1 className="text-xl font-bold text-gray-900 mb-2">Projects to Score</h1>
+
+      {assigned.length > 0 && (
+        <p className="text-sm text-gray-500 mb-4">
+          {scoredCount} of {assigned.length} assigned projects scored
+        </p>
+      )}
+
+      {/* View toggle */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setView('assigned')}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            view === 'assigned'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          My Assignments ({assigned.length})
+        </button>
+        <button
+          onClick={() => setView('all')}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            view === 'all'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          All Projects ({projects.length})
+        </button>
+      </div>
 
       <input
         type="text"
@@ -45,22 +77,14 @@ export function JudgeProjectListPage() {
         className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
       />
 
-      {assigned.length > 0 && (
-        <>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Your Assigned Projects</h2>
-          <div className="space-y-2 mb-6">
-            {assigned.map(p => <ProjectCard key={p.Project_ID} project={p} />)}
-          </div>
-        </>
-      )}
-
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">All Projects</h2>
       <div className="space-y-2">
-        {others.map(p => <ProjectCard key={p.Project_ID} project={p} />)}
+        {displayProjects.map(p => <ProjectCard key={p.Project_ID} project={p} />)}
       </div>
 
-      {filtered.length === 0 && (
-        <div className="text-center py-8 text-gray-400">No projects found</div>
+      {displayProjects.length === 0 && (
+        <div className="text-center py-8 text-gray-400">
+          {view === 'assigned' ? 'No projects assigned to you yet' : 'No projects found'}
+        </div>
       )}
     </div>
   );

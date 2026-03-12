@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
 import type { EventSummary, Event } from '../../types';
 
@@ -6,6 +7,9 @@ export function AdminDashboardPage() {
   const [summary, setSummary] = useState<EventSummary | null>(null);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  const appUrl = `${window.location.origin}/judge`;
 
   useEffect(() => {
     loadData();
@@ -62,6 +66,42 @@ export function AdminDashboardPage() {
             <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* Judge QR Code */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Judge Login QR Code</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Print or display this QR code for judges to scan and access the scoring app.
+        </p>
+        <div className="flex items-start gap-6">
+          <div ref={qrRef} className="bg-white p-4 rounded-lg border border-gray-200 inline-block">
+            <QRCodeSVG value={appUrl} size={180} level="M" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-600 mb-1">Link:</p>
+            <code className="text-sm bg-gray-100 px-3 py-1.5 rounded block mb-4 text-gray-800 break-all">
+              {appUrl}
+            </code>
+            <button
+              onClick={() => {
+                const svg = qrRef.current?.querySelector('svg');
+                if (!svg) return;
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'gpsa-judge-qr.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Download QR Code
+            </button>
+          </div>
+        </div>
       </div>
 
       <button
