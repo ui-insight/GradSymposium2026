@@ -8,6 +8,7 @@ export function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null);
   const [filter, setFilter] = useState<string>('');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,6 +48,25 @@ export function ProjectsPage() {
       console.error(err);
     }
     if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleWithdraw(projectId: string) {
+    try {
+      await apiFetch(`/projects/${projectId}/withdraw`, { method: 'POST' });
+      setConfirmId(null);
+      loadData();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleReinstate(projectId: string) {
+    try {
+      await apiFetch(`/projects/${projectId}/reinstate`, { method: 'POST' });
+      loadData();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   const filtered = projects.filter(p => {
@@ -118,13 +138,21 @@ export function ProjectsPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Table</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Scores</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map(p => (
-              <tr key={p.Project_ID} className="hover:bg-gray-50">
+              <tr key={p.Project_ID} className={`hover:bg-gray-50 ${!p.Is_Active ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-3 font-mono font-medium">{p.Project_Number}</td>
-                <td className="px-4 py-3 max-w-xs truncate">{p.Project_Title}</td>
+                <td className="px-4 py-3 max-w-xs truncate">
+                  {p.Project_Title}
+                  {!p.Is_Active && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      Withdrawn
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">{p.Presenter_First_Name} {p.Presenter_Last_Name}</td>
                 <td className="px-4 py-3 text-gray-500">{p.Department || '—'}</td>
                 <td className="px-4 py-3">
@@ -138,6 +166,40 @@ export function ProjectsPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-500">{p.Table_Number || '—'}</td>
                 <td className="px-4 py-3 text-gray-500">{p.score_count}</td>
+                <td className="px-4 py-3">
+                  {p.Is_Active ? (
+                    confirmId === p.Project_ID ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleWithdraw(p.Project_ID)}
+                          className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded hover:bg-red-200 transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(null)}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmId(p.Project_ID)}
+                        className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors"
+                      >
+                        Withdraw
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      onClick={() => handleReinstate(p.Project_ID)}
+                      className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors"
+                    >
+                      Reinstate
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

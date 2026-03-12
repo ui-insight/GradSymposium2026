@@ -1,10 +1,11 @@
 """Project management routes (admin only)."""
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
+from app.models.judge_assignment import JudgeAssignment
 from app.models.project import Project
 from app.models.score import Score
 from app.models.user import User
@@ -109,6 +110,51 @@ async def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(project, key, val)
+    await db.commit()
+    await db.refresh(project)
+    return _project_to_read(project, len(project.scores))
+
+
+@router.post("/{project_id}/withdraw", response_model=ProjectRead)
+async def withdraw_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Withdraw a project: deactivate it and clear its judge assignments."""
+    result = await db.execute(
+        select(Project).where(Project.Project_ID == project_id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project.Is_Active:
+        raise HTTPException(status_code=400, detail="Project is already withdrawn")
+    project.Is_Active = False
+    await db.execute(
+        delete(JudgeAssignment).where(JudgeAssignment.Project_ID == project_id)
+    )
+    await db.commit()
+    await db.refresh(project)
+    return _project_to_read(project, len(project.scores))
+
+
+@router.post("/{project_id}/reinstate", response_model=ProjectRead)
+async def reinstate_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Reinstate a previously withdrawn project."""
+    result = await db.execute(
+        select(Project).where(Project.Project_ID == project_id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.Is_Active:
+        raise HTTPException(status_code=400, detail="Project is already active")
+    project.Is_Active = True
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, len(project.scores))
