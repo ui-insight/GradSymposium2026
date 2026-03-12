@@ -100,19 +100,27 @@ export function JudgesPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Dept</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Code</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Scored</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">(Projects) Assigned</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">(Projects) Scored</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {judges.map(j => (
-              <tr key={j.Judge_ID} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{j.First_Name} {j.Last_Name}</td>
-                <td className="px-4 py-3 text-gray-500">{j.Email || '—'}</td>
-                <td className="px-4 py-3 text-gray-500">{j.Department || '—'}</td>
-                <td className="px-4 py-3 font-mono font-bold text-blue-600">{j.Access_Code}</td>
-                <td className="px-4 py-3 text-gray-500">{j.score_count} projects</td>
-              </tr>
-            ))}
+            {judges.map(j => {
+              const hasMissingScores = j.assignment_count > j.score_count;
+
+              return (
+                <tr key={j.Judge_ID} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{j.First_Name} {j.Last_Name}</td>
+                  <td className="px-4 py-3 text-gray-500">{j.Email || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500">{j.Department || '—'}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-blue-600">{j.Access_Code}</td>
+                  <td className="px-4 py-3 text-gray-500">{j.assignment_count} projects</td>
+                  <td className={`px-4 py-3 ${hasMissingScores ? 'font-medium text-red-600' : 'text-gray-500'}`}>
+                    {j.score_count} projects
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {judges.length === 0 && (

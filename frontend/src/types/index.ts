@@ -34,6 +34,7 @@ export interface Judge {
   Department: string | null;
   Access_Code: string;
   Is_Active: boolean;
+  assignment_count: number;
   score_count: number;
 }
 

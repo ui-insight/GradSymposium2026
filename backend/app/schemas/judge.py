@@ -27,6 +27,7 @@ class JudgeRead(BaseModel):
     Department: str | None
     Access_Code: str
     Is_Active: bool
+    assignment_count: int = 0
     score_count: int = 0
 
     model_config = {"from_attributes": True}
