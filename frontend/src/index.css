@@ -1,1 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+:root {
+  --brand-black: #000000;
+  --brand-ink: #191919;
+  --brand-steel: #323232;
+  --brand-gold: #f1b300;
+  --brand-gold-deep: #b27d00;
+  --brand-gold-pale: #f8e6a3;
+  --brand-paper: #fffdf7;
+  --brand-cream: #f5efe2;
+  --brand-border: #ddd1b7;
+  --brand-shadow: rgba(25, 25, 25, 0.12);
+}
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(241, 179, 0, 0.18), transparent 32%),
+    linear-gradient(180deg, #fffcf5 0%, #f4ecdd 100%);
+}
+
+body {
+  min-height: 100vh;
+  font-family: 'Public Sans', system-ui, sans-serif;
+  color: var(--brand-ink);
+  background:
+    linear-gradient(135deg, rgba(241, 179, 0, 0.08), transparent 26%),
+    linear-gradient(180deg, #fffdf7 0%, #f3ecde 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace !important;
+}
+
+::selection {
+  background: var(--brand-gold);
+  color: var(--brand-black);
+}
+
+input,
+textarea,
+select,
+button {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--brand-gold-deep) !important;
+  box-shadow: 0 0 0 3px rgba(241, 179, 0, 0.18) !important;
+}
+
+.bg-white {
+  background-color: rgba(255, 253, 247, 0.94) !important;
+}
+
+.bg-gray-50 {
+  background-color: var(--brand-cream) !important;
+}
+
+.bg-gray-100 {
+  background-color: #ece3d1 !important;
+}
+
+.bg-gray-200 {
+  background-color: #dccfb4 !important;
+}
+
+.border-gray-100 {
+  border-color: #efe3cd !important;
+}
+
+.border-gray-200,
+.border-gray-300 {
+  border-color: var(--brand-border) !important;
+}
+
+.text-gray-900 {
+  color: var(--brand-ink) !important;
+}
+
+.text-gray-800 {
+  color: #2d2a25 !important;
+}
+
+.text-gray-700 {
+  color: #4b463d !important;
+}
+
+.text-gray-600 {
+  color: #635b4f !important;
+}
+
+.text-gray-500,
+.text-gray-400 {
+  color: #8b7f6e !important;
+}
+
+.bg-blue-600 {
+  background-color: var(--brand-black) !important;
+}
+
+.bg-blue-700 {
+  background-color: var(--brand-steel) !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: var(--brand-steel) !important;
+}
+
+.bg-blue-50 {
+  background-color: rgba(241, 179, 0, 0.12) !important;
+}
+
+.bg-blue-100 {
+  background-color: rgba(241, 179, 0, 0.22) !important;
+}
+
+.text-blue-600 {
+  color: var(--brand-gold-deep) !important;
+}
+
+.text-blue-700,
+.text-blue-800 {
+  color: var(--brand-black) !important;
+}
+
+.text-blue-200 {
+  color: #f5d36e !important;
+}
+
+.border-blue-200,
+.border-blue-300,
+.border-blue-500 {
+  border-color: rgba(241, 179, 0, 0.55) !important;
+}
+
+.focus\:border-blue-500:focus {
+  border-color: var(--brand-gold-deep) !important;
+}
+
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: rgba(241, 179, 0, 0.22) !important;
+}
+
+.bg-green-600,
+.bg-green-700 {
+  background-color: var(--brand-gold) !important;
+}
+
+.bg-green-600.text-white,
+.bg-green-700.text-white {
+  color: var(--brand-black) !important;
+}
+
+.hover\:bg-green-700:hover {
+  background-color: #d49d00 !important;
+}
+
+.shadow-sm,
+.shadow-2xl {
+  box-shadow:
+    0 18px 44px -24px rgba(25, 25, 25, 0.28),
+    0 10px 22px -18px var(--brand-shadow) !important;
+}
+
+.hover\:bg-gray-50:hover {
+  background-color: rgba(241, 179, 0, 0.08) !important;
+}
+
+.hover\:bg-gray-100:hover,
+.hover\:bg-gray-200:hover {
+  background-color: #e6dcc8 !important;
+}
