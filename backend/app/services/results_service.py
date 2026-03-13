@@ -39,6 +39,7 @@ async def get_project_results(
             Project.Category,
             func.count(judge_totals.c.Judge_ID.distinct()).label("judge_count"),
             func.sum(judge_totals.c.judge_total).label("total_score"),
+            func.avg(judge_totals.c.judge_total).label("average_score"),
         )
         .join(judge_totals, judge_totals.c.Project_ID == Project.Project_ID)
         .where(Project.Event_ID == event_id)
@@ -51,6 +52,7 @@ async def get_project_results(
 
     stmt = stmt.order_by(
         Project.Category,
+        func.avg(judge_totals.c.judge_total).desc(),
         func.sum(judge_totals.c.judge_total).desc(),
     )
 
@@ -64,7 +66,7 @@ async def get_project_results(
     for row in rows:
         judge_count = row.judge_count or 0
         total_score = row.total_score or 0
-        avg_score = total_score / judge_count if judge_count > 0 else 0.0
+        avg_score = row.average_score or 0.0
 
         if row.Category != current_category:
             current_category = row.Category
