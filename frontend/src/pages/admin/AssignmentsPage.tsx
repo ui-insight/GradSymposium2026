@@ -2,6 +2,33 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../../api/client';
 import type { Judge, Project, Event, Assignment } from '../../types';
 
+function shuffleArray<T>(items: T[]) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function sortJudgesForDistribution(
+  candidates: Judge[],
+  judgeCounts: Map<string, number>
+) {
+  const buckets = new Map<number, Judge[]>();
+
+  for (const judge of candidates) {
+    const count = judgeCounts.get(judge.Judge_ID) || 0;
+    const bucket = buckets.get(count) || [];
+    bucket.push(judge);
+    buckets.set(count, bucket);
+  }
+
+  return [...buckets.keys()]
+    .sort((a, b) => a - b)
+    .flatMap(count => shuffleArray(buckets.get(count) || []));
+}
+
 export function AssignmentsPage() {
   const [judges, setJudges] = useState<Judge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -62,7 +89,7 @@ export function AssignmentsPage() {
   async function handleAutoAssign() {
     if (!event) return;
 
-    const targetProjects = filteredProjects;
+    const targetProjects = shuffleArray(filteredProjects);
 
     // Build current assignment counts per judge (across ALL projects, not just filtered)
     const judgeCounts = new Map<string, number>();
@@ -84,9 +111,10 @@ export function AssignmentsPage() {
       const needed = judgesPerProject - alreadyAssigned.size;
       if (needed <= 0) continue;
 
-      const available = judges
-        .filter(j => !alreadyAssigned.has(j.Judge_ID))
-        .sort((a, b) => (judgeCounts.get(a.Judge_ID) || 0) - (judgeCounts.get(b.Judge_ID) || 0));
+      const available = sortJudgesForDistribution(
+        judges.filter(j => !alreadyAssigned.has(j.Judge_ID)),
+        judgeCounts
+      );
 
       for (let i = 0; i < Math.min(needed, available.length); i++) {
         const judge = available[i];
