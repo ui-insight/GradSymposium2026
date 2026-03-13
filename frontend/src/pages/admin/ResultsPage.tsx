@@ -30,7 +30,11 @@ export function ResultsPage() {
       if (ev) {
         const [r, a] = await Promise.all([
           apiFetch<ProjectResult[]>(`/results/?event_id=${ev.Event_ID}`),
-          apiFetch<ActivityItem[]>(`/results/activity?event_id=${ev.Event_ID}&limit=8`),
+          apiFetch<ActivityItem[]>(`/results/activity?event_id=${ev.Event_ID}&limit=8`)
+            .catch(err => {
+              console.error('Failed to load recent activity:', err);
+              return [];
+            }),
         ]);
         setResults(r);
         setActivity(a);

@@ -76,7 +76,15 @@ async def recent_activity(
         .join(Judge, Score.Judge_ID == Judge.Judge_ID)
         .join(Project, Score.Project_ID == Project.Project_ID)
         .where(Project.Event_ID == event_id)
-        .group_by(Score.Judge_ID, Score.Project_ID)
+        .group_by(
+            Score.Judge_ID,
+            Score.Project_ID,
+            Judge.First_Name,
+            Judge.Last_Name,
+            Project.Project_Number,
+            Project.Project_Title,
+            Project.Category,
+        )
         .order_by(func.max(Score.Scored_At).desc())
         .limit(limit)
     )
