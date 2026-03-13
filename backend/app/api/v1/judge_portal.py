@@ -1,7 +1,11 @@
 """Judge-facing portal routes (access code auth)."""
 
+import datetime
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_judge, get_db
@@ -16,6 +20,7 @@ from app.schemas.auth import JudgeLogin, TokenResponse
 from app.schemas.score import ScoreSubmission
 
 router = APIRouter(prefix="/judge", tags=["judge-portal"])
+log = logging.getLogger(__name__)
 
 
 # --- Auth ---
@@ -134,14 +139,23 @@ async def judge_project_detail(
     )
     existing_scores = {s.Criterion_ID: s.Score_Value for s in score_result.scalars().all()}
 
-    # Get existing feedback
-    fb_result = await db.execute(
-        select(Feedback).where(
-            Feedback.Judge_ID == judge.Judge_ID,
-            Feedback.Project_ID == project_id,
+    # Older dev databases may not have feedback storage yet.
+    existing_feedback = None
+    try:
+        fb_result = await db.execute(
+            select(Feedback).where(
+                Feedback.Judge_ID == judge.Judge_ID,
+                Feedback.Project_ID == project_id,
+            )
         )
-    )
-    existing_feedback = fb_result.scalar_one_or_none()
+        existing_feedback = fb_result.scalar_one_or_none()
+    except OperationalError:
+        log.warning(
+            "Feedback could not be loaded for judge %s project %s",
+            judge.Judge_ID,
+            project_id,
+            exc_info=True,
+        )
 
     rubric_data = None
     if rubric:
@@ -188,11 +202,16 @@ async def submit_scores(
     """Submit or update all criterion scores for a project."""
     # Verify project exists
     proj_result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
+        select(Project).where(
+            Project.Project_ID == project_id,
+            Project.Event_ID == judge.Event_ID,
+            Project.Is_Active.is_(True),
+        )
     )
     if not proj_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Project not found")
 
+    scored_at = datetime.datetime.utcnow()
     for entry in body.scores:
         if entry.Score_Value < 0 or entry.Score_Value > 3:
             raise HTTPException(
@@ -210,6 +229,7 @@ async def submit_scores(
         score = existing.scalar_one_or_none()
         if score:
             score.Score_Value = entry.Score_Value
+            score.Scored_At = scored_at
         else:
             db.add(
                 Score(
@@ -217,31 +237,56 @@ async def submit_scores(
                     Project_ID=project_id,
                     Criterion_ID=entry.Criterion_ID,
                     Score_Value=entry.Score_Value,
-                )
-            )
-
-    # Save optional feedback
-    if body.feedback and body.feedback.strip():
-        fb_existing = await db.execute(
-            select(Feedback).where(
-                Feedback.Judge_ID == judge.Judge_ID,
-                Feedback.Project_ID == project_id,
-            )
-        )
-        fb = fb_existing.scalar_one_or_none()
-        if fb:
-            fb.Feedback_Text = body.feedback.strip()
-        else:
-            db.add(
-                Feedback(
-                    Judge_ID=judge.Judge_ID,
-                    Project_ID=project_id,
-                    Feedback_Text=body.feedback.strip(),
+                    Scored_At=scored_at,
                 )
             )
 
     await db.commit()
-    return {"status": "ok", "project_id": project_id}
+
+    feedback_saved = True
+    feedback_text = body.feedback.strip() if body.feedback is not None else None
+
+    # Save feedback separately so optional feedback issues never drop the scores.
+    if body.feedback is not None:
+        try:
+            fb_existing = await db.execute(
+                select(Feedback).where(
+                    Feedback.Judge_ID == judge.Judge_ID,
+                    Feedback.Project_ID == project_id,
+                )
+            )
+
+            fb = fb_existing.scalar_one_or_none()
+            if feedback_text:
+                if fb:
+                    fb.Feedback_Text = feedback_text
+                else:
+                    db.add(
+                        Feedback(
+                            Judge_ID=judge.Judge_ID,
+                            Project_ID=project_id,
+                            Feedback_Text=feedback_text,
+                        )
+                    )
+            elif fb:
+                await db.delete(fb)
+
+            await db.commit()
+        except OperationalError:
+            feedback_saved = False
+            await db.rollback()
+            log.warning(
+                "Feedback could not be saved for judge %s project %s",
+                judge.Judge_ID,
+                project_id,
+                exc_info=True,
+            )
+
+    return {
+        "status": "ok",
+        "project_id": project_id,
+        "feedback_saved": feedback_saved,
+    }
 
 
 @router.get("/my-scores")

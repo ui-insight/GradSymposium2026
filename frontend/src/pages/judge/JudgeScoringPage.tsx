@@ -26,16 +26,22 @@ export function JudgeScoringPage() {
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitNotice, setSubmitNotice] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [projectId]);
 
   async function loadData() {
+    setError(null);
     try {
       const d = await apiFetch<JudgeProjectDetail>(`/judge/projects/${projectId}`);
       setDetail(d);
       setScores(d.existing_scores || {});
       setFeedback(d.existing_feedback || '');
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load project.');
+    }
     finally { setLoading(false); }
   }
 
@@ -46,18 +52,24 @@ export function JudgeScoringPage() {
   async function handleSubmit() {
     if (!detail?.rubric) return;
     setSubmitting(true);
+    setError(null);
+    setSubmitNotice(null);
     try {
       const scoreEntries = Object.entries(scores).map(([cid, val]) => ({
         Criterion_ID: parseInt(cid),
         Score_Value: val,
       }));
-      await apiFetch(`/judge/projects/${projectId}/scores`, {
+      const response = await apiFetch<{ feedback_saved?: boolean }>(`/judge/projects/${projectId}/scores`, {
         method: 'POST',
         body: JSON.stringify({ scores: scoreEntries, feedback: feedback || null }),
       });
+      if (response.feedback_saved === false) {
+        setSubmitNotice('Scores were saved, but feedback could not be stored.');
+      }
       setSubmitted(true);
     } catch (err) {
       console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to submit scores.');
     } finally {
       setSubmitting(false);
     }
@@ -77,6 +89,11 @@ export function JudgeScoringPage() {
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Scores Submitted!</h2>
         <p className="text-gray-500 mb-6">{detail.Project_Title}</p>
+        {submitNotice && (
+          <div className="mx-auto mb-6 max-w-md rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {submitNotice}
+          </div>
+        )}
         <button
           onClick={() => navigate('/judge/projects')}
           className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
@@ -127,6 +144,12 @@ export function JudgeScoringPage() {
           {detail.Department && ` — ${detail.Department}`}
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Scoring form */}
       {Object.entries(groups).map(([groupName, groupCriteria]) => (
