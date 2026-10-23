@@ -24,6 +24,9 @@ class Score(Base):
         sa.Integer, sa.ForeignKey("Rubric_Criterion.Criterion_ID"), nullable=False
     )
     Score_Value: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    Is_Active: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, default=True, server_default=sa.true()
+    )
     Scored_At: Mapped[datetime.datetime] = mapped_column(
         sa.DateTime,
         default=lambda: datetime.datetime.utcnow(),

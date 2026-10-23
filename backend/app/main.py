@@ -14,6 +14,7 @@ from app.api.v1.router import api_router  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.engine import async_session_factory, engine  # noqa: E402
+from app.db.schema import ensure_runtime_schema  # noqa: E402
 from app.db.seed import ensure_admin, seed_database  # noqa: E402
 
 # Ensure all models are imported so create_all sees them
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await ensure_runtime_schema(conn)
 
     # Stamp Alembic head so future migrations start from current schema
     from alembic.config import Config

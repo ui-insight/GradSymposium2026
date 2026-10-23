@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import type { JudgeProjectDetail, Criterion } from '../../types';
@@ -29,9 +29,7 @@ export function JudgeScoringPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitNotice, setSubmitNotice] = useState<string | null>(null);
 
-  useEffect(() => { loadData(); }, [projectId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setError(null);
     try {
       const d = await apiFetch<JudgeProjectDetail>(`/judge/projects/${projectId}`);
@@ -43,7 +41,9 @@ export function JudgeScoringPage() {
       setError(err instanceof Error ? err.message : 'Failed to load project.');
     }
     finally { setLoading(false); }
-  }
+  }, [projectId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   function setScore(criterionId: number, value: number) {
     setScores(prev => ({ ...prev, [criterionId]: value }));

@@ -42,6 +42,7 @@ services:
 
 volumes:
   pgdata:
+    name: ${POSTGRES_VOLUME_NAME:?Set POSTGRES_VOLUME_NAME to an app-specific volume}
 
 networks:
   gpsa-net:

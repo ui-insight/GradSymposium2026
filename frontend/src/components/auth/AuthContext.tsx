@@ -1,26 +1,14 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { apiFetch } from '../../api/client';
-
-interface AuthState {
-  isAuthenticated: boolean;
-  role: 'admin' | 'judge' | null;
-  user: { name: string; id: string } | null;
-  login: (token: string, role: 'admin' | 'judge') => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthState>({
-  isAuthenticated: false,
-  role: null,
-  user: null,
-  login: () => {},
-  logout: () => {},
-});
+import { storage } from '../../utils/storage';
+import { AuthContext } from './auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('access_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!storage.getItem('access_token')
+  );
   const [role, setRole] = useState<'admin' | 'judge' | null>(
-    localStorage.getItem('user_role') as 'admin' | 'judge' | null
+    storage.getItem('user_role') as 'admin' | 'judge' | null
   );
   const [user, setUser] = useState<{ name: string; id: string } | null>(null);
 
@@ -37,15 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, role]);
 
   const login = (token: string, r: 'admin' | 'judge') => {
-    localStorage.setItem('access_token', token);
-    localStorage.setItem('user_role', r);
+    storage.setItem('access_token', token);
+    storage.setItem('user_role', r);
     setIsAuthenticated(true);
     setRole(r);
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_role');
+    storage.removeItem('access_token');
+    storage.removeItem('user_role');
     setIsAuthenticated(false);
     setRole(null);
     setUser(null);
@@ -56,8 +44,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

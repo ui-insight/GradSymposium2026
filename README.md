@@ -1,25 +1,42 @@
-# GradSymposium2026
+# GPSA Symposium Scoring App
 
-A web application for judging and scoring presentations at the University of Idaho GPSA Graduate Student Symposium.
+This repository contains the judging application used for the University of Idaho
+GPSA Graduate Student Symposium held on March 13, 2026.
 
-**Event:** March 13, 2026 — Bruce Pitman Center, International Ballroom
+It is now documented for handoff and archive so GPSA or a future maintainer can
+bring it back online when the symposium runs again.
 
-## Features
+## Start Here
 
-- **Admin dashboard** — manage events, projects, judges, rubrics, and view results
-- **Judge portal** — mobile-friendly scoring interface using simple access codes
-- **Two rubric types** — Art (3 criteria, max 9 pts) and Poster (12 criteria, max 36 pts)
-- **CSV import** — bulk upload student projects from a spreadsheet
-- **Real-time results** — aggregated rankings by category with Excel export
-- **Access code auth** — judges log in with a 6-character code, no password needed
+- [Handoff guide](docs/HANDOFF.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Operations guide](docs/OPERATIONS.md)
+- [Archive checklist](docs/ARCHIVE_CHECKLIST.md)
+- [Backend notes](backend/README.md)
+- [Frontend notes](frontend/README.md)
 
-## Tech Stack
+## Stack
 
-- **Frontend:** React 19, TypeScript, Tailwind CSS v4
-- **Backend:** Python FastAPI, async SQLAlchemy, SQLite
-- **Auth:** JWT (admin login + judge access codes)
+- Frontend: React 19, TypeScript, Tailwind CSS v4, Vite
+- Backend: FastAPI, async SQLAlchemy, Alembic
+- Database: PostgreSQL for the checked-in Docker deployment flow
+- Local-only option: SQLite is still supported for direct backend runs
 
-## Quick Start
+## Important Handoff Notes
+
+- The checked-in Docker deployment path uses PostgreSQL.
+- If the backend starts against an empty database, it auto-seeds the built-in
+  2026 symposium event, rubrics, judges, and projects from
+  `backend/app/db/seed.py`.
+- The admin UI does not currently expose event creation or rubric creation.
+  Those steps are documented in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+- A default admin account is created automatically when no admin exists:
+  `admin` / `admin`. Rotate that password before any future live use.
+- Historical `.env.dev` and `.env.prod` files are present in the repository.
+  Treat their credentials as compromised and rotate all secrets before reusing
+  this project.
+
+## Quick Local Run
 
 ### Backend
 
@@ -39,33 +56,20 @@ npm install
 npm run dev
 ```
 
-### Dev Credentials
+### Docker Compose
 
-- **Admin:** `admin` / `admin`
-- **Judge access codes:** see the Judges page in the admin dashboard after seeding
-
-## Project Structure
-
-```
-backend/
-  app/
-    api/v1/       # FastAPI route handlers
-    auth/         # JWT and password utilities
-    db/           # Database engine, base, seed data
-    models/       # SQLAlchemy ORM models
-    schemas/      # Pydantic request/response schemas
-    services/     # Business logic (CSV import, results, export)
-    config.py     # Settings
-    main.py       # FastAPI app entry point
-
-frontend/
-  src/
-    api/          # API client modules
-    components/   # Reusable UI components
-    pages/        # Route-level page components
-    types/        # TypeScript interfaces
+```bash
+cp .env.example .env
+docker compose up -d --build
 ```
 
-## License
+The application will be available on `http://localhost:8080`.
 
-MIT
+## Repository Layout
+
+```text
+backend/     FastAPI app, models, schemas, services, migrations
+frontend/    React app and nginx production container config
+docs/        Handoff, deployment, operations, and archive documentation
+deploy.sh    Remote Docker deployment helper for the historical host
+```

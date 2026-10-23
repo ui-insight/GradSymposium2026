@@ -34,6 +34,10 @@ def _project_to_read(project: Project, score_count: int = 0) -> ProjectRead:
     )
 
 
+def _active_score_count(project: Project) -> int:
+    return sum(1 for score in project.scores if score.Is_Active)
+
+
 @router.get("/", response_model=list[ProjectRead])
 async def list_projects(
     event_id: str,
@@ -46,7 +50,10 @@ async def list_projects(
             Project,
             func.count(Score.Score_ID.distinct()).label("sc"),
         )
-        .outerjoin(Score, Score.Project_ID == Project.Project_ID)
+        .outerjoin(
+            Score,
+            (Score.Project_ID == Project.Project_ID) & Score.Is_Active.is_(True),
+        )
         .where(Project.Event_ID == event_id)
         .group_by(Project.Project_ID)
         .order_by(Project.Category, Project.Project_Number)
@@ -92,7 +99,7 @@ async def get_project(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return _project_to_read(project, len(project.scores))
+    return _project_to_read(project, _active_score_count(project))
 
 
 @router.patch("/{project_id}", response_model=ProjectRead)
@@ -112,7 +119,7 @@ async def update_project(
         setattr(project, key, val)
     await db.commit()
     await db.refresh(project)
-    return _project_to_read(project, len(project.scores))
+    return _project_to_read(project, _active_score_count(project))
 
 
 @router.post("/{project_id}/withdraw", response_model=ProjectRead)
@@ -136,7 +143,7 @@ async def withdraw_project(
     )
     await db.commit()
     await db.refresh(project)
-    return _project_to_read(project, len(project.scores))
+    return _project_to_read(project, _active_score_count(project))
 
 
 @router.post("/{project_id}/reinstate", response_model=ProjectRead)
@@ -157,7 +164,7 @@ async def reinstate_project(
     project.Is_Active = True
     await db.commit()
     await db.refresh(project)
-    return _project_to_read(project, len(project.scores))
+    return _project_to_read(project, _active_score_count(project))
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

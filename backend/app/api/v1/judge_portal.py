@@ -81,7 +81,10 @@ async def judge_projects(
 
     # Get projects this judge has already scored
     scored_result = await db.execute(
-        select(Score.Project_ID.distinct()).where(Score.Judge_ID == judge.Judge_ID)
+        select(Score.Project_ID.distinct()).where(
+            Score.Judge_ID == judge.Judge_ID,
+            Score.Is_Active.is_(True),
+        )
     )
     scored_ids = set(scored_result.scalars().all())
 
@@ -135,6 +138,7 @@ async def judge_project_detail(
         select(Score).where(
             Score.Judge_ID == judge.Judge_ID,
             Score.Project_ID == project_id,
+            Score.Is_Active.is_(True),
         )
     )
     existing_scores = {s.Criterion_ID: s.Score_Value for s in score_result.scalars().all()}
@@ -146,6 +150,7 @@ async def judge_project_detail(
             select(Feedback).where(
                 Feedback.Judge_ID == judge.Judge_ID,
                 Feedback.Project_ID == project_id,
+                Feedback.Is_Active.is_(True),
             )
         )
         existing_feedback = fb_result.scalar_one_or_none()
@@ -229,6 +234,7 @@ async def submit_scores(
         score = existing.scalar_one_or_none()
         if score:
             score.Score_Value = entry.Score_Value
+            score.Is_Active = True
             score.Scored_At = scored_at
         else:
             db.add(
@@ -237,6 +243,7 @@ async def submit_scores(
                     Project_ID=project_id,
                     Criterion_ID=entry.Criterion_ID,
                     Score_Value=entry.Score_Value,
+                    Is_Active=True,
                     Scored_At=scored_at,
                 )
             )
@@ -260,16 +267,18 @@ async def submit_scores(
             if feedback_text:
                 if fb:
                     fb.Feedback_Text = feedback_text
+                    fb.Is_Active = True
                 else:
                     db.add(
                         Feedback(
                             Judge_ID=judge.Judge_ID,
                             Project_ID=project_id,
                             Feedback_Text=feedback_text,
+                            Is_Active=True,
                         )
                     )
             elif fb:
-                await db.delete(fb)
+                fb.Is_Active = False
 
             await db.commit()
         except OperationalError:
@@ -296,7 +305,10 @@ async def my_scores(
 ):
     """List all projects this judge has scored with totals."""
     score_result = await db.execute(
-        select(Score).where(Score.Judge_ID == judge.Judge_ID)
+        select(Score).where(
+            Score.Judge_ID == judge.Judge_ID,
+            Score.Is_Active.is_(True),
+        )
     )
     scores = score_result.scalars().all()
 

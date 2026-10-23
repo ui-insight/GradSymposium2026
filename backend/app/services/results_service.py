@@ -23,6 +23,7 @@ async def get_project_results(
             Score.Judge_ID,
             func.sum(Score.Score_Value).label("judge_total"),
         )
+        .where(Score.Is_Active.is_(True))
         .group_by(Score.Project_ID, Score.Judge_ID)
         .subquery()
     )
@@ -139,7 +140,7 @@ async def get_event_summary(db: AsyncSession, event_id: str) -> EventSummary:
             )
         )
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(Project.Event_ID == event_id, Score.Is_Active.is_(True))
     )
     total_scores = score_pairs.scalar() or 0
 
@@ -147,7 +148,7 @@ async def get_event_summary(db: AsyncSession, event_id: str) -> EventSummary:
     scored_projects = await db.execute(
         select(func.count(Score.Project_ID.distinct()))
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(Project.Event_ID == event_id, Score.Is_Active.is_(True))
     )
     projects_with_scores = scored_projects.scalar() or 0
 
