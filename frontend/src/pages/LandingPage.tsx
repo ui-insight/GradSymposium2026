@@ -31,7 +31,7 @@ export function LandingPage() {
                 {event?.Event_Name || 'Conference presentations'}
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-[#ddd2bf] sm:text-lg">
-                Find your poster number, score presentations, and manage event operations.
+                Find your poster number, score presentations, or enter an attendee ballot.
               </p>
               <div className="mt-8 flex flex-wrap gap-3 text-sm text-[#e6dcc8]">
                 <span className="rounded-full border border-[#4b4028] px-4 py-2">
@@ -72,6 +72,10 @@ export function LandingPage() {
                   </span>
           </Link>
 
+          <Link to="/vote" className="block rounded-[1.5rem] border border-[#d8c8a6] bg-white px-5 py-5 text-gray-900 hover:bg-[#f5efe1]">
+            <span className="block text-lg font-semibold">Attendee voting</span>
+            <span className="mt-1 block text-sm text-gray-600">Use a registration voting code when voting opens.</span>
+          </Link>
           <Link
             to="/admin/login"
                   className="block rounded-[1.5rem] border border-[#d8c8a6] bg-[#f5efe1] px-5 py-5 text-gray-900 transition-colors hover:bg-[#efe5d3]"

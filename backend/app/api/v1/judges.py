@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
 from app.models.judge import Judge
+from app.models.judge_conflict import JudgeConflict
 from app.models.user import User
 from app.schemas.judge import (
     AccessCodeCard,
@@ -15,6 +16,7 @@ from app.schemas.judge import (
     JudgeUpdate,
 )
 from app.services.access_code import generate_access_code
+from app.services.competition import complete_reviews, lock_event
 
 router = APIRouter(prefix="/judges", tags=["judges"])
 
@@ -40,9 +42,7 @@ def _judge_to_read(judge: Judge) -> JudgeRead:
 async def _unique_code(db: AsyncSession) -> str:
     for _ in range(100):
         code = generate_access_code()
-        existing = await db.execute(
-            select(Judge).where(Judge.Access_Code == code)
-        )
+        existing = await db.execute(select(Judge).where(Judge.Access_Code == code))
         if not existing.scalar_one_or_none():
             return code
     raise RuntimeError("Unable to generate unique access code")
@@ -77,11 +77,14 @@ async def list_judges(
     _admin: User = Depends(get_current_admin),
 ):
     result = await db.execute(
-        select(Judge)
-        .where(Judge.Event_ID == event_id)
-        .order_by(Judge.Last_Name)
+        select(Judge).where(Judge.Event_ID == event_id).order_by(Judge.Last_Name)
     )
-    return [_judge_to_read(j) for j in result.scalars().all()]
+    judges = result.scalars().all()
+    reviews = await complete_reviews(db, event_id)
+    rows = [_judge_to_read(j) for j in judges]
+    for row in rows:
+        row.score_count = sum(r["Judge_ID"] == row.Judge_ID for r in reviews)
+    return rows
 
 
 @router.post("/", response_model=JudgeRead, status_code=status.HTTP_201_CREATED)
@@ -90,6 +93,7 @@ async def create_judge(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
+    await lock_event(db, body.Event_ID)
     code = await _unique_code(db)
     judge = Judge(
         Event_ID=body.Event_ID,
@@ -105,12 +109,17 @@ async def create_judge(
     return _judge_to_read(judge)
 
 
-@router.post("/bulk", response_model=list[JudgeRead], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/bulk", response_model=list[JudgeRead], status_code=status.HTTP_201_CREATED
+)
 async def bulk_create_judges(
     body: JudgeBulkCreate,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
+    await lock_event(db, body.Event_ID)
+    if any(j.Event_ID != body.Event_ID for j in body.judges):
+        raise HTTPException(422, "Judges must belong to the selected event")
     created = []
     for j in body.judges:
         code = await _unique_code(db)
@@ -154,6 +163,14 @@ async def update_judge(
     judge = result.scalar_one_or_none()
     if not judge:
         raise HTTPException(status_code=404, detail="Judge not found")
+    await lock_event(db, judge.Event_ID)
+    await db.refresh(judge)
+    if any(
+        value is None
+        for key, value in body.model_dump(exclude_unset=True).items()
+        if key in {"First_Name", "Last_Name", "Is_Active"}
+    ):
+        raise HTTPException(422, "Name and active status cannot be null")
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(judge, key, val)
     await db.commit()
@@ -171,6 +188,13 @@ async def delete_judge(
     judge = result.scalar_one_or_none()
     if not judge:
         raise HTTPException(status_code=404, detail="Judge not found")
+    await lock_event(db, judge.Event_ID)
+    if judge.scores or await db.scalar(
+        select(JudgeConflict.Conflict_ID).where(JudgeConflict.Judge_ID == judge_id)
+    ):
+        raise HTTPException(
+            409, "Deactivate this judge to preserve competition history"
+        )
     await db.delete(judge)
     await db.commit()
 

@@ -2,21 +2,21 @@
 
 import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ScoreEntry(BaseModel):
     """A single criterion score within a submission."""
 
-    Criterion_ID: int
-    Score_Value: int  # 0-3
+    Criterion_ID: int = Field(strict=True, ge=1)
+    Score_Value: int = Field(strict=True, ge=0, le=3)
 
 
 class ScoreSubmission(BaseModel):
     """All criterion scores for a project, submitted by a judge."""
 
-    scores: list[ScoreEntry]
-    feedback: str | None = None
+    scores: list[ScoreEntry] = Field(min_length=1, max_length=100)
+    feedback: str | None = Field(default=None, max_length=10000)
 
 
 class ScoreRead(BaseModel):
@@ -31,7 +31,7 @@ class ScoreRead(BaseModel):
 
 
 class ScoreOverrideUpdate(BaseModel):
-    Score_Value: int
+    Score_Value: int = Field(strict=True, ge=0, le=3)
 
 
 class ScoreOverrideRead(BaseModel):

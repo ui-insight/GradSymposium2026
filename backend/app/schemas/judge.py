@@ -1,17 +1,25 @@
 """Judge schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class JudgeCreate(BaseModel):
     Event_ID: str
-    First_Name: str
-    Last_Name: str
+    First_Name: str = Field(min_length=1, max_length=100)
+    Last_Name: str = Field(min_length=1, max_length=100)
     Email: str | None = None
     Department: str | None = None
 
+    @field_validator("First_Name", "Last_Name")
+    @classmethod
+    def trim_name(cls, value):
+        if not value.strip():
+            raise ValueError("Provide a name")
+        return value.strip()
+
 
 class JudgeUpdate(BaseModel):
+    Is_Active: bool | None = None
     First_Name: str | None = None
     Last_Name: str | None = None
     Email: str | None = None

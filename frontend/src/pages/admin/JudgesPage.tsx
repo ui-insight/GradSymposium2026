@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../api/client';
+import { getSelectedEvent } from '../../api/event';
 import type { Judge, Event, AccessCodeCard } from '../../types';
 
 export function JudgesPage() {
   const [judges, setJudges] = useState<Judge[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCodes, setShowCodes] = useState(false);
   const [codes, setCodes] = useState<AccessCodeCard[]>([]);
@@ -15,13 +17,13 @@ export function JudgesPage() {
 
   async function loadData() {
     try {
-      const ev = await apiFetch<Event | null>('/events/active');
+      const ev = await getSelectedEvent();
       setEvent(ev);
       if (ev) {
         const j = await apiFetch<Judge[]>(`/judges/?event_id=${ev.Event_ID}`);
         setJudges(j);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
     finally { setLoading(false); }
   }
 
@@ -36,7 +38,7 @@ export function JudgesPage() {
       setNewJudge({ First_Name: '', Last_Name: '', Email: '', Department: '' });
       setShowAdd(false);
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
   }
 
   async function handleShowCodes() {
@@ -80,6 +82,8 @@ export function JudgesPage() {
         </div>
       </div>
 
+      <p className="mb-4 text-sm">{event?.Event_Name}. Completed counts include full, valid score sheets only.</p>
+      {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       {showAdd && (
         <form onSubmit={handleAdd} className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
           <input placeholder="First Name" value={newJudge.First_Name} onChange={e => setNewJudge(p => ({ ...p, First_Name: e.target.value }))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
@@ -101,7 +105,8 @@ export function JudgesPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-500">Dept</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Code</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">(Projects) Assigned</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">(Projects) Scored</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Complete reviews</th>
+              <th className="px-4 py-3 text-left">Access</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -116,8 +121,9 @@ export function JudgesPage() {
                   <td className="px-4 py-3 font-mono font-bold text-blue-600">{j.Access_Code}</td>
                   <td className="px-4 py-3 text-gray-500">{j.assignment_count} projects</td>
                   <td className={`px-4 py-3 ${hasMissingScores ? 'font-medium text-red-600' : 'text-gray-500'}`}>
-                    {j.score_count} projects
+                    {j.score_count} reviews
                   </td>
+                  <td className="px-4 py-3"><button className="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm" onClick={async () => { try { await apiFetch(`/judges/${j.Judge_ID}`, { method: 'PATCH', body: JSON.stringify({ Is_Active: !j.Is_Active }) }); await loadData(); } catch (err) { setError(err instanceof Error ? err.message : 'Access update failed.'); } }}>{j.Is_Active ? 'Deactivate' : 'Reactivate'}</button></td>
                 </tr>
               );
             })}

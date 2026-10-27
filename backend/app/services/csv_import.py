@@ -110,7 +110,15 @@ async def import_projects_from_csv(
         seen.add(identity)
         match = by_identity.get(identity)
         if match:
-            incoming = row.model_dump(exclude={"Event_ID", "Project_Number"})
+            incoming = row.model_dump(
+                exclude={
+                    "Event_ID",
+                    "Project_Number",
+                    "Judging_Eligible",
+                    "Voting_Eligible",
+                    "Award_Groups",
+                }
+            )
             unchanged = all(
                 getattr(match, key) == value for key, value in incoming.items()
             )
