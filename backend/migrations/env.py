@@ -5,11 +5,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.config import settings
-from app.db.base import Base
-
 # Import all models so autogenerate sees them
 import app.models  # noqa: F401
+from app.config import settings
+from app.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:
@@ -21,6 +20,8 @@ target_metadata = Base.metadata
 db_url = settings.database_url
 if "asyncpg" in db_url:
     db_url = db_url.replace("postgresql+asyncpg", "postgresql+psycopg2")
+if "sqlite+aiosqlite" in db_url:
+    db_url = db_url.replace("sqlite+aiosqlite", "sqlite")
 config.set_main_option("sqlalchemy.url", db_url)
 
 

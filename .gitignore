@@ -4,6 +4,8 @@ __pycache__/
 *.egg-info/
 .venv/
 *.db
+*.db-*
+data/asm-2026/
 
 # Node
 node_modules/
@@ -17,6 +19,7 @@ dist/
 .env
 .env.prod
 .env.dev
+.env.asm
 *.env.local
 
 # OS

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class EventCreate(BaseModel):
     Event_Name: str
     Event_Date: datetime.date
+    Event_End_Date: datetime.date | None = None
     Location: str | None = None
     Description: str | None = None
     Is_Active: bool = True
@@ -16,6 +17,7 @@ class EventCreate(BaseModel):
 class EventUpdate(BaseModel):
     Event_Name: str | None = None
     Event_Date: datetime.date | None = None
+    Event_End_Date: datetime.date | None = None
     Location: str | None = None
     Description: str | None = None
     Is_Active: bool | None = None
@@ -25,6 +27,8 @@ class EventRead(BaseModel):
     Event_ID: str
     Event_Name: str
     Event_Date: datetime.date
+    Event_End_Date: datetime.date | None
+    Public_Poster_Lookup_Enabled: bool
     Location: str | None
     Description: str | None
     Is_Active: bool

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
-import { useAuth } from '../../components/auth/AuthContext';
+import { useAuth } from '../../components/auth/useAuth';
 
 export function AdminLoginPage() {
   const [username, setUsername] = useState('');
@@ -55,7 +55,7 @@ export function AdminLoginPage() {
         <div className="w-full">
           <div className="rounded-[2rem] border border-[#d7c8a9] bg-white/95 p-8 shadow-2xl">
             <h2 className="text-2xl font-semibold text-gray-900 mb-1">Admin Login</h2>
-            <p className="text-sm text-gray-500 mb-6">GPSA Symposium Management</p>
+            <p className="text-sm text-gray-500 mb-6">Conference Management</p>
 
           {error && (
             <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg mb-4">

@@ -7,6 +7,7 @@ import type {
   ProjectScoreReview,
   ProjectScoreReviewCriterion,
 } from '../../types';
+import { storage } from '../../utils/storage';
 
 interface ActivityItem {
   Judge_Name: string;
@@ -41,6 +42,7 @@ export function ResultsPage() {
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [draftScores, setDraftScores] = useState<Record<number, number>>({});
   const [savingJudgeId, setSavingJudgeId] = useState<string | null>(null);
+  const [deletingJudgeId, setDeletingJudgeId] = useState<string | null>(null);
   const eventRef = useRef<Event | null>(null);
 
   const loadData = useCallback(async () => {
@@ -85,6 +87,7 @@ export function ResultsPage() {
     setReviewLoading(true);
     setReviewError(null);
     setReviewNotice(null);
+    setDeletingJudgeId(null);
 
     try {
       const nextReview = await apiFetch<ProjectScoreReview>(
@@ -102,7 +105,7 @@ export function ResultsPage() {
 
   async function handleExport() {
     if (!event) return;
-    const token = localStorage.getItem('access_token');
+    const token = storage.getItem('access_token');
     const res = await fetch(`/api/v1/results/export?event_id=${event.Event_ID}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -159,12 +162,47 @@ export function ResultsPage() {
     }
   }
 
+  async function handleDeleteSubmission(submission: JudgeScoreReview) {
+    if (!review) return;
+
+    const confirmed = window.confirm(
+      `Deactivate ${submission.Judge_Name}'s scores for project ${review.Project_Number} so they are excluded from results but kept in the database?`
+    );
+    if (!confirmed) return;
+
+    setDeletingJudgeId(submission.Judge_ID);
+    setReviewError(null);
+    setReviewNotice(null);
+
+    try {
+      await apiFetch(`/scores/submissions/${review.Project_ID}/${submission.Judge_ID}`, {
+        method: 'DELETE',
+      });
+
+      const refreshed = await apiFetch<ProjectScoreReview>(
+        `/scores/review/${review.Project_ID}`
+      );
+      setReview(refreshed);
+      setDraftScores(buildDraftScores(refreshed));
+      setReviewNotice(`Deactivated ${submission.Judge_Name}'s submission.`);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setReviewError(
+        err instanceof Error ? err.message : 'Failed to deactivate submission.'
+      );
+    } finally {
+      setDeletingJudgeId(null);
+    }
+  }
+
   function closeReview() {
     setSelectedProject(null);
     setReview(null);
     setReviewError(null);
     setReviewNotice(null);
     setSavingJudgeId(null);
+    setDeletingJudgeId(null);
     setDraftScores({});
   }
 
@@ -310,7 +348,7 @@ export function ResultsPage() {
                 <td className="px-4 py-3 font-mono">{r.Project_Number}</td>
                 <td className="px-4 py-3 max-w-xs truncate">{r.Project_Title}</td>
                 <td className="px-4 py-3">
-                  {r.Presenter_First_Name} {r.Presenter_Last_Name}
+                  {r.Presenter_Display_Name || `${r.Presenter_First_Name} ${r.Presenter_Last_Name}`}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{r.Department || '—'}</td>
                 <td className="px-4 py-3">
@@ -370,8 +408,7 @@ export function ResultsPage() {
                     {selectedProject.Project_Title}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {selectedProject.Presenter_First_Name}{' '}
-                    {selectedProject.Presenter_Last_Name}
+                    {selectedProject.Presenter_Display_Name || `${selectedProject.Presenter_First_Name} ${selectedProject.Presenter_Last_Name}`}
                     {selectedProject.Department && ` • ${selectedProject.Department}`}
                   </p>
                 </div>
@@ -447,6 +484,9 @@ export function ResultsPage() {
                       const draft = draftScores[criterion.Score_ID];
                       return draft !== undefined && draft !== criterion.Score_Value;
                     }).length;
+                    const isSaving = savingJudgeId === submission.Judge_ID;
+                    const isDeleting = deletingJudgeId === submission.Judge_ID;
+                    const isBusy = isSaving || isDeleting;
 
                     return (
                       <section
@@ -475,11 +515,18 @@ export function ResultsPage() {
                               </div>
                             </div>
                             <button
+                              onClick={() => handleDeleteSubmission(submission)}
+                              disabled={isBusy}
+                              className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {isDeleting ? 'Deactivating...' : 'Deactivate Submission'}
+                            </button>
+                            <button
                               onClick={() => handleSaveSubmission(submission)}
-                              disabled={changedCount === 0 || savingJudgeId === submission.Judge_ID}
+                              disabled={changedCount === 0 || isBusy}
                               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {savingJudgeId === submission.Judge_ID
+                              {isSaving
                                 ? 'Saving...'
                                 : changedCount > 0
                                   ? `Save ${changedCount} change${changedCount > 1 ? 's' : ''}`

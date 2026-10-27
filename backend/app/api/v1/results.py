@@ -75,7 +75,11 @@ async def recent_activity(
         )
         .join(Judge, Score.Judge_ID == Judge.Judge_ID)
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(
+            Project.Event_ID == event_id,
+            Project.Is_Active.is_(True),
+            Score.Is_Active.is_(True),
+        )
         .group_by(
             Score.Judge_ID,
             Score.Project_ID,

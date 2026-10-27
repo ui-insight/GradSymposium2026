@@ -39,7 +39,7 @@ async def list_scores(
     stmt = (
         select(Score)
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(Project.Event_ID == event_id, Score.Is_Active.is_(True))
     )
     if judge_id:
         stmt = stmt.where(Score.Judge_ID == judge_id)
@@ -67,7 +67,7 @@ async def get_project_score_review(
         select(Score, Judge, RubricCriterion)
         .join(Judge, Score.Judge_ID == Judge.Judge_ID)
         .join(RubricCriterion, Score.Criterion_ID == RubricCriterion.Criterion_ID)
-        .where(Score.Project_ID == project_id)
+        .where(Score.Project_ID == project_id, Score.Is_Active.is_(True))
         .order_by(
             Judge.Last_Name,
             Judge.First_Name,
@@ -80,7 +80,10 @@ async def get_project_score_review(
     feedback_by_judge: dict[str, str] = {}
     try:
         feedback_rows = await db.execute(
-            select(Feedback).where(Feedback.Project_ID == project_id)
+            select(Feedback).where(
+                Feedback.Project_ID == project_id,
+                Feedback.Is_Active.is_(True),
+            )
         )
         feedback_by_judge = {
             feedback.Judge_ID: feedback.Feedback_Text
@@ -100,7 +103,9 @@ async def get_project_score_review(
             select(ScoreOverride, User.Username)
             .join(User, ScoreOverride.Admin_User_ID == User.User_ID)
             .where(ScoreOverride.Score_ID.in_(score_ids))
-            .order_by(ScoreOverride.Overridden_At.asc(), ScoreOverride.Override_ID.asc())
+            .order_by(
+                ScoreOverride.Overridden_At.asc(), ScoreOverride.Override_ID.asc()
+            )
         )
         for override, username in override_rows.all():
             overrides_by_score.setdefault(override.Score_ID, []).append(
@@ -159,6 +164,7 @@ async def get_project_score_review(
         Project_Title=project.Project_Title,
         Presenter_First_Name=project.Presenter_First_Name,
         Presenter_Last_Name=project.Presenter_Last_Name,
+        Presenter_Display_Name=project.Presenter_Display_Name,
         Department=project.Department,
         Category=project.Category,
         submissions=list(submissions.values()),
@@ -179,7 +185,7 @@ async def override_score(
 
     result = await db.execute(select(Score).where(Score.Score_ID == score_id))
     score = result.scalar_one_or_none()
-    if not score:
+    if not score or not score.Is_Active:
         raise HTTPException(status_code=404, detail="Score not found")
 
     if score.Score_Value != body.Score_Value:
@@ -198,6 +204,47 @@ async def override_score(
     return score
 
 
+@router.delete(
+    "/submissions/{project_id}/{judge_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_submission(
+    project_id: str,
+    judge_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    score_ids_result = await db.execute(
+        select(Score).where(
+            Score.Project_ID == project_id,
+            Score.Judge_ID == judge_id,
+        )
+    )
+    scores = score_ids_result.scalars().all()
+
+    feedback_result = await db.execute(
+        select(Feedback).where(
+            Feedback.Project_ID == project_id,
+            Feedback.Judge_ID == judge_id,
+        )
+    )
+    feedback = feedback_result.scalar_one_or_none()
+
+    has_active_scores = any(score.Is_Active for score in scores)
+    has_active_feedback = feedback is not None and feedback.Is_Active
+    if not has_active_scores and not has_active_feedback:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    for score in scores:
+        if score.Is_Active:
+            score.Is_Active = False
+
+    if feedback is not None and feedback.Is_Active:
+        feedback.Is_Active = False
+
+    await db.commit()
+
+
 @router.delete("/{score_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_score(
     score_id: int,
@@ -206,7 +253,7 @@ async def delete_score(
 ):
     result = await db.execute(select(Score).where(Score.Score_ID == score_id))
     score = result.scalar_one_or_none()
-    if not score:
+    if not score or not score.Is_Active:
         raise HTTPException(status_code=404, detail="Score not found")
-    await db.delete(score)
+    score.Is_Active = False
     await db.commit()

@@ -23,6 +23,7 @@ async def get_project_results(
             Score.Judge_ID,
             func.sum(Score.Score_Value).label("judge_total"),
         )
+        .where(Score.Is_Active.is_(True))
         .group_by(Score.Project_ID, Score.Judge_ID)
         .subquery()
     )
@@ -35,6 +36,7 @@ async def get_project_results(
             Project.Project_Title,
             Project.Presenter_First_Name,
             Project.Presenter_Last_Name,
+            Project.Presenter_Display_Name,
             Project.Department,
             Project.Category,
             func.count(judge_totals.c.Judge_ID.distinct()).label("judge_count"),
@@ -81,6 +83,7 @@ async def get_project_results(
                 Project_Title=row.Project_Title,
                 Presenter_First_Name=row.Presenter_First_Name,
                 Presenter_Last_Name=row.Presenter_Last_Name,
+                Presenter_Display_Name=row.Presenter_Display_Name,
                 Department=row.Department,
                 Category=row.Category,
                 Judge_Count=judge_count,
@@ -132,22 +135,29 @@ async def get_event_summary(db: AsyncSession, event_id: str) -> EventSummary:
     total_judges = judge_result.scalar() or 0
 
     # Total score submissions (unique judge-project pairs)
-    score_pairs = await db.execute(
-        select(
-            func.count(
-                func.distinct(func.concat(Score.Judge_ID, Score.Project_ID))
-            )
-        )
+    submissions = (
+        select(Score.Judge_ID, Score.Project_ID)
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(
+            Project.Event_ID == event_id,
+            Project.Is_Active.is_(True),
+            Score.Is_Active.is_(True),
+        )
+        .distinct()
+        .subquery()
     )
+    score_pairs = await db.execute(select(func.count()).select_from(submissions))
     total_scores = score_pairs.scalar() or 0
 
     # Projects that have at least one score
     scored_projects = await db.execute(
         select(func.count(Score.Project_ID.distinct()))
         .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
+        .where(
+            Project.Event_ID == event_id,
+            Project.Is_Active.is_(True),
+            Score.Is_Active.is_(True),
+        )
     )
     projects_with_scores = scored_projects.scalar() or 0
 

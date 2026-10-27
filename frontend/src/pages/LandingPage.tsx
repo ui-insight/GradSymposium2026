@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { conferenceDates, fetchPosterDirectory } from '../api/publicPosters';
+import type { PublicEvent } from '../types';
 
 export function LandingPage() {
+  const [event, setEvent] = useState<PublicEvent | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPosterDirectory(controller.signal).then(data => setEvent(data.event)).catch(() => {});
+    return () => controller.abort();
+  }, []);
   return (
     <div className="min-h-screen bg-[#0f0f0f] px-4 py-8 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center">
@@ -19,21 +28,17 @@ export function LandingPage() {
                 Boldly toward discovery
               </p>
               <h1 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl">
-                GPSA Graduate Student Symposium 2026
+                {event?.Event_Name || 'Conference presentations'}
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-[#ddd2bf] sm:text-lg">
-                Scoring, rankings and event operations for the University of Idaho’s
-                graduate research and creative work showcase.
+                Find your poster number, score presentations, and manage event operations.
               </p>
               <div className="mt-8 flex flex-wrap gap-3 text-sm text-[#e6dcc8]">
                 <span className="rounded-full border border-[#4b4028] px-4 py-2">
-                  March 13, 2026
+                  {event ? conferenceDates(event) : 'University of Idaho'}
                 </span>
                 <span className="rounded-full border border-[#4b4028] px-4 py-2">
-                  Bruce Pitman Center
-                </span>
-                <span className="rounded-full border border-[#4b4028] px-4 py-2">
-                  International Ballroom
+                  {event?.Location || 'Poster presentations'}
                 </span>
               </div>
             </div>
@@ -53,6 +58,10 @@ export function LandingPage() {
               </p>
 
               <div className="mt-8 space-y-4">
+                <Link to="/posters" className="block rounded-[1.5rem] border border-[#b27d00] bg-[#f1b300] px-5 py-5 text-[#191919] transition-colors hover:bg-[#d49d00] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-700">
+                  <span className="block text-lg font-semibold">Find my poster</span>
+                  <span className="mt-1 block text-sm">Look up your poster number and location. No sign in needed.</span>
+                </Link>
           <Link
             to="/judge"
                   className="block rounded-[1.5rem] border border-[#2d2414] bg-[#111111] px-5 py-5 text-white transition-colors hover:bg-[#1b1b1b]"

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
-import { useAuth } from '../../components/auth/AuthContext';
+import { useAuth } from '../../components/auth/useAuth';
 
 export function JudgeLoginPage() {
   const [code, setCode] = useState('');

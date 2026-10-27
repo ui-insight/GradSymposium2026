@@ -1,10 +1,12 @@
+import { storage } from '../utils/storage';
+
 const BASE_URL = '/api/v1';
 
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const token = localStorage.getItem('access_token');
+  const token = storage.getItem('access_token');
   const headers: Record<string, string> = {
     ...(options?.headers as Record<string, string> || {}),
   };
@@ -17,11 +19,12 @@ export async function apiFetch<T>(
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem('access_token');
+      storage.removeItem('access_token');
+      storage.removeItem('user_role');
       const currentPath = window.location.pathname;
       if (currentPath.startsWith('/judge')) {
         window.location.href = '/judge';
-      } else {
+      } else if (currentPath.startsWith('/admin')) {
         window.location.href = '/admin/login';
       }
     }

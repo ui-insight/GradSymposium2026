@@ -13,10 +13,12 @@ import { JudgeLoginPage } from './pages/judge/JudgeLoginPage'
 import { JudgeProjectListPage } from './pages/judge/JudgeProjectListPage'
 import { JudgeScoringPage } from './pages/judge/JudgeScoringPage'
 import { LandingPage } from './pages/LandingPage'
+import { PosterLookupPage } from './pages/PosterLookupPage'
 
 function App() {
   return (
     <Routes>
+      <Route path="/posters" element={<PosterLookupPage />} />
       {/* Admin routes */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route

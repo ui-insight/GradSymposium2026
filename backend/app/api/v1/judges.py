@@ -21,7 +21,7 @@ router = APIRouter(prefix="/judges", tags=["judges"])
 
 def _judge_to_read(judge: Judge) -> JudgeRead:
     # Count unique project-score pairs
-    scored_projects = {s.Project_ID for s in judge.scores}
+    scored_projects = {s.Project_ID for s in judge.scores if s.Is_Active}
     assigned_projects = {a.Project_ID for a in judge.assignments}
     return JudgeRead(
         Judge_ID=judge.Judge_ID,

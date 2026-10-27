@@ -71,6 +71,7 @@ class ProjectScoreReview(BaseModel):
     Project_Title: str
     Presenter_First_Name: str
     Presenter_Last_Name: str
+    Presenter_Display_Name: str | None = None
     Department: str | None
     Category: str
     submissions: list[JudgeScoreReview]

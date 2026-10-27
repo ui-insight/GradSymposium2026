@@ -21,6 +21,9 @@ class Feedback(Base):
         sa.String(36), sa.ForeignKey("Project.Project_ID"), nullable=False
     )
     Feedback_Text: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    Is_Active: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, default=True, server_default=sa.true()
+    )
     Created_At: Mapped[datetime.datetime] = mapped_column(
         sa.DateTime,
         default=lambda: datetime.datetime.utcnow(),
