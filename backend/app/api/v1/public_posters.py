@@ -1,4 +1,4 @@
-"""Unauthenticated, published-only poster directory."""
+"""Allowlisted poster directory, with an explicitly enabled dev draft preview."""
 
 import re
 
@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
+from app.config import settings
 from app.models.event import Event
 from app.models.project import Project
 from app.schemas.public_poster import PublicEvent, PublicPoster, PublicPosterDirectory
@@ -19,18 +20,23 @@ async def poster_directory(response: Response, db: AsyncSession = Depends(get_db
     response.headers["Cache-Control"] = "no-store"
     events = list(await db.scalars(select(Event).where(Event.Is_Active.is_(True))))
     # Ambiguous event configuration must never expose the wrong roster.
-    if len(events) != 1 or not events[0].Public_Poster_Lookup_Enabled:
+    draft_preview = settings.dev_mode and settings.public_draft_preview
+    if len(events) != 1 or (
+        not draft_preview and not events[0].Public_Poster_Lookup_Enabled
+    ):
         return PublicPosterDirectory()
     event = events[0]
-    projects = await db.scalars(
-        select(Project).where(
-            Project.Event_ID == event.Event_ID,
-            Project.Category == "Poster",
-            Project.Is_Active.is_(True),
+    statement = select(Project).where(
+        Project.Event_ID == event.Event_ID,
+        Project.Category == "Poster",
+        Project.Is_Active.is_(True),
+    )
+    if not draft_preview:
+        statement = statement.where(
             Project.Is_Published.is_(True),
             Project.Roster_Review_Required.is_(False),
         )
-    )
+    projects = await db.scalars(statement)
 
     def number_key(project):
         return tuple(
@@ -39,6 +45,7 @@ async def poster_directory(response: Response, db: AsyncSession = Depends(get_db
         )
 
     return PublicPosterDirectory(
+        is_draft_preview=draft_preview,
         event=PublicEvent.model_validate(event),
         posters=[
             PublicPoster(

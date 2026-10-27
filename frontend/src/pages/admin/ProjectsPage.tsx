@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
-import type { Project, Event, CSVImportResult } from '../../types';
+import type { Project, Event, CSVImportResult, PublicPosterDirectory } from '../../types';
 
 const buttonClass = 'min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100 disabled:cursor-wait disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700';
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
+  const [draftPreview, setDraftPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +31,11 @@ export function ProjectsPage() {
   }, [approving]);
 
   const loadData = useCallback(async () => {
-    const ev = await apiFetch<Event | null>('/events/active');
+    const [ev, directory] = await Promise.all([
+      apiFetch<Event | null>('/events/active'),
+      apiFetch<PublicPosterDirectory>('/public/posters'),
+    ]);
+    setDraftPreview(directory.is_draft_preview);
     setEvent(ev);
     setProjects(ev ? await apiFetch<Project[]>(`/projects/?event_id=${ev.Event_ID}`) : []);
   }, []);
@@ -117,11 +122,11 @@ export function ProjectsPage() {
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-[65ch]">
             <h2 id="publication-heading" className="text-lg font-semibold">Public poster directory</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-700">{event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
-            <p className="mt-1 text-sm leading-6 text-gray-600">Imports and corrections stay in draft until you publish. Issued numbers remain fixed, including after withdrawal.</p>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{draftPreview ? 'Dev preview open. All active draft posters are publicly visible for testing; final publication has not been confirmed.' : event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{draftPreview ? 'Corrections appear in the dev preview immediately. Resolve the source review flags before final publication.' : 'Imports and corrections stay in draft until you publish.'} Issued numbers remain fixed, including after withdrawal.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button disabled={busy || activePosters.length === 0 || reviewRequired > 0} onClick={() => setConfirm('publish')} className={`${buttonClass} bg-green-600`}>Publish active posters</button>
-              {event.Public_Poster_Lookup_Enabled && <button disabled={busy} onClick={() => setConfirm('hide')} className={buttonClass}>Hide directory</button>}
+              {!draftPreview && event.Public_Poster_Lookup_Enabled && <button disabled={busy} onClick={() => setConfirm('hide')} className={buttonClass}>Hide directory</button>}
             </div>
           </div>
           <div className="text-center">

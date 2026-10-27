@@ -217,6 +217,7 @@ export interface PublicPoster {
 }
 
 export interface PublicPosterDirectory {
+  is_draft_preview: boolean;
   event: PublicEvent | null;
   posters: PublicPoster[];
 }

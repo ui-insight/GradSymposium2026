@@ -65,6 +65,26 @@ not publish the directory, and re-staging the identical snapshot preserves it.
 
 ## Separate ASM setup
 
+### Public dev preview
+
+For organizer testing on dev, set both `GPSA_DEV_MODE=true` and
+`GPSA_PUBLIC_DRAFT_PREVIEW=true`, then recreate the backend container. This makes
+all active poster drafts in the sole active event publicly searchable at
+`/posters`, including flagged submissions, with an unconfirmed-draft notice that
+also appears when printing. Only the usual public fields are returned. Private
+contacts, source annotations, review decisions, and scores remain excluded.
+
+This preview does not change `Is_Published`, clear review flags, or approve any
+submission. Normal publication still requires resolving the active review flags.
+The preview is disabled by default and ignored when `GPSA_DEV_MODE=false`.
+Set `GPSA_PUBLIC_DRAFT_PREVIEW=false` to return to the published-only directory.
+
+The current dev setup uses ASM as the active event and preserves the historical
+GPSA event as inactive. Keep `GPSA_SEED_HISTORICAL_EVENT=false` in dev settings so
+backend restarts do not re-enable the historical event.
+
+### Isolated live deployment
+
 Use a separate database/volume for ASM. Do not run these commands against the
 archived GPSA production database. Historical GPSA auto-seeding must be disabled
 through `GPSA_SEED_HISTORICAL_EVENT=false`, including on server restarts.

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480  # 8 hours (covers full event day)
     dev_mode: bool = True
     seed_historical_event: bool = True
+    public_draft_preview: bool = False
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     model_config = {
