@@ -10,15 +10,14 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
+# Ensure all models are imported so create_all sees them
+import app.models  # noqa: F401, E402
 from app.api.v1.router import api_router  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.engine import async_session_factory, engine  # noqa: E402
 from app.db.schema import ensure_runtime_schema  # noqa: E402
 from app.db.seed import ensure_admin, seed_database  # noqa: E402
-
-# Ensure all models are imported so create_all sees them
-import app.models  # noqa: F401, E402
 
 
 @asynccontextmanager
@@ -51,8 +50,9 @@ async def lifespan(app: FastAPI):
         await ensure_admin(session)
 
     # Seed event data (real 2026 symposium data — idempotent)
-    async with async_session_factory() as session:
-        await seed_database(session)
+    if settings.seed_historical_event:
+        async with async_session_factory() as session:
+            await seed_database(session)
 
     yield
 

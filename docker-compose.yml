@@ -23,6 +23,7 @@ services:
       GPSA_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-gpsa}:${POSTGRES_PASSWORD:-gpsa}@db:5432/${POSTGRES_DB:-gpsa}
       GPSA_SECRET_KEY: ${GPSA_SECRET_KEY:-dev-secret-change-in-production}
       GPSA_DEV_MODE: ${GPSA_DEV_MODE:-true}
+      GPSA_SEED_HISTORICAL_EVENT: ${GPSA_SEED_HISTORICAL_EVENT:-true}
       GPSA_CORS_ORIGINS: ${GPSA_CORS_ORIGINS:-http://localhost:${HOST_PORT:-8080}}
     depends_on:
       db:

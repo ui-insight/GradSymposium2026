@@ -1,16 +1,27 @@
 """Project management routes (admin only)."""
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
+from app.models.event import Event
 from app.models.judge_assignment import JudgeAssignment
 from app.models.project import Project
 from app.models.score import Score
 from app.models.user import User
-from app.schemas.project import CSVImportResult, ProjectCreate, ProjectRead, ProjectUpdate
+from app.schemas.project import (
+    CSVImportResult,
+    PosterPublication,
+    ProjectCreate,
+    ProjectRead,
+    ProjectUpdate,
+)
 from app.services.csv_import import import_projects_from_csv
+from app.services.project_numbering import lock_event_numbers, reserve_number
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -24,6 +35,11 @@ def _project_to_read(project: Project, score_count: int = 0) -> ProjectRead:
         Presenter_First_Name=project.Presenter_First_Name,
         Presenter_Last_Name=project.Presenter_Last_Name,
         Presenter_Email=project.Presenter_Email,
+        Presenter_Display_Name=project.Presenter_Display_Name,
+        Institution=project.Institution,
+        Is_Published=project.Is_Published,
+        Roster_Review=project.Roster_Review,
+        Roster_Review_Required=project.Roster_Review_Required,
         Department=project.Department,
         College=project.College,
         Advisor_Name=project.Advisor_Name,
@@ -69,9 +85,23 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    project = Project(**body.model_dump())
-    db.add(project)
-    await db.commit()
+    await lock_event_numbers(db, body.Event_ID)
+    project_id = str(uuid.uuid4())
+    try:
+        number = await reserve_number(
+            db, body.Event_ID, project_id, body.Category, body.Project_Number
+        )
+        project = Project(
+            **body.model_dump(exclude={"Project_Number"}),
+            Project_ID=project_id,
+            Project_Number=number,
+        )
+        db.add(project)
+        await db.commit()
+    except (ValueError, IntegrityError) as exc:
+        await db.rollback()
+        detail = str(exc) if isinstance(exc, ValueError) else "Project number conflict"
+        raise HTTPException(status_code=409, detail=detail) from exc
     await db.refresh(project)
     return _project_to_read(project)
 
@@ -80,11 +110,64 @@ async def create_project(
 async def import_csv(
     event_id: str,
     file: UploadFile,
+    dry_run: bool = False,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    content = (await file.read()).decode("utf-8-sig")
-    return await import_projects_from_csv(db, event_id, content)
+    try:
+        content = (await file.read()).decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Upload a UTF-8 CSV file") from exc
+    try:
+        return await import_projects_from_csv(db, event_id, content, dry_run=dry_run)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409, detail="Roster changed; preview the import again"
+        ) from exc
+
+
+@router.post("/publication")
+async def publish_posters(
+    body: PosterPublication,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    await lock_event_numbers(db, body.Event_ID)
+    event = await db.get(Event, body.Event_ID)
+    active_events = list(
+        await db.scalars(select(Event).where(Event.Is_Active.is_(True)))
+    )
+    if body.Is_Published and (
+        len(active_events) != 1 or active_events[0].Event_ID != event.Event_ID
+    ):
+        raise HTTPException(
+            status_code=409, detail="Activate exactly this event before publishing"
+        )
+    if body.Is_Published:
+        review_count = await db.scalar(
+            select(func.count())
+            .select_from(Project)
+            .where(
+                Project.Event_ID == body.Event_ID,
+                Project.Is_Active.is_(True),
+                Project.Roster_Review_Required.is_(True),
+            )
+        )
+        if review_count:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Review {review_count} submissions before publishing",
+            )
+    statement = update(Project).where(
+        Project.Event_ID == body.Event_ID, Project.Category == "Poster"
+    )
+    if body.Is_Published:
+        statement = statement.where(Project.Is_Active.is_(True))
+    await db.execute(statement.values(Is_Published=body.Is_Published))
+    event.Public_Poster_Lookup_Enabled = body.Is_Published
+    await db.commit()
+    return {"Is_Published": body.Is_Published}
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
@@ -93,9 +176,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.Project_ID == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -109,14 +190,35 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.Project_ID == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if (
+        "Project_Number" in body.model_fields_set
+        and body.Project_Number != project.Project_Number
+    ):
+        raise HTTPException(
+            status_code=409, detail="Issued poster numbers cannot be changed"
+        )
+    if "Category" in body.model_fields_set and body.Category != project.Category:
+        raise HTTPException(
+            status_code=409, detail="Numbered project categories cannot be changed"
+        )
+    required = {"Project_Title", "Presenter_First_Name", "Presenter_Last_Name"}
+    if any(getattr(body, field) is None for field in body.model_fields_set & required):
+        raise HTTPException(status_code=422, detail="Required fields cannot be null")
+    merged = {key: getattr(project, key) for key in ProjectCreate.model_fields}
+    merged.update(body.model_dump(exclude_unset=True))
+    try:
+        ProjectCreate.model_validate(merged)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="Provide a title and presenter name"
+        ) from exc
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(project, key, val)
+    project.Is_Published = False
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, _active_score_count(project))
@@ -129,15 +231,14 @@ async def withdraw_project(
     _admin: User = Depends(get_current_admin),
 ):
     """Withdraw a project: deactivate it and clear its judge assignments."""
-    result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.Project_ID == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if not project.Is_Active:
         raise HTTPException(status_code=400, detail="Project is already withdrawn")
     project.Is_Active = False
+    project.Is_Published = False
     await db.execute(
         delete(JudgeAssignment).where(JudgeAssignment.Project_ID == project_id)
     )
@@ -153,15 +254,14 @@ async def reinstate_project(
     _admin: User = Depends(get_current_admin),
 ):
     """Reinstate a previously withdrawn project."""
-    result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.Project_ID == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.Is_Active:
         raise HTTPException(status_code=400, detail="Project is already active")
     project.Is_Active = True
+    project.Is_Published = False
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, _active_score_count(project))
@@ -173,11 +273,10 @@ async def delete_project(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
-    )
+    result = await db.execute(select(Project).where(Project.Project_ID == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    await lock_event_numbers(db, project.Event_ID)
     await db.delete(project)
     await db.commit()

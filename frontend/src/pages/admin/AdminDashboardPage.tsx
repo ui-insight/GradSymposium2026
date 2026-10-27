@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
+import { conferenceDates } from '../../api/publicPosters';
 import type { EventSummary, Event } from '../../types';
 
 export function AdminDashboardPage() {
@@ -53,7 +54,7 @@ export function AdminDashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{event.Event_Name}</h1>
         <p className="text-gray-500">
-          {new Date(event.Event_Date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          {conferenceDates(event)}
           {event.Location && ` — ${event.Location}`}
         </p>
       </div>

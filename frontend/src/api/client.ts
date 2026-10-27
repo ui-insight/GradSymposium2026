@@ -24,7 +24,7 @@ export async function apiFetch<T>(
       const currentPath = window.location.pathname;
       if (currentPath.startsWith('/judge')) {
         window.location.href = '/judge';
-      } else {
+      } else if (currentPath.startsWith('/admin')) {
         window.location.href = '/admin/login';
       }
     }

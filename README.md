@@ -8,6 +8,8 @@ bring it back online when the symposium runs again.
 
 ## Start Here
 
+- [ASM poster numbering and public lookup](docs/ASM_POSTER_LOOKUP.md)
+
 - [Handoff guide](docs/HANDOFF.md)
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Operations guide](docs/OPERATIONS.md)

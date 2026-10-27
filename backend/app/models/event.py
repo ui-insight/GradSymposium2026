@@ -17,6 +17,10 @@ class Event(Base):
     )
     Event_Name: Mapped[str] = mapped_column(sa.String(200), nullable=False)
     Event_Date: Mapped[datetime.date] = mapped_column(sa.Date, nullable=False)
+    Event_End_Date: Mapped[datetime.date | None] = mapped_column(sa.Date)
+    Public_Poster_Lookup_Enabled: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
     Location: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     Description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     Is_Active: Mapped[bool] = mapped_column(

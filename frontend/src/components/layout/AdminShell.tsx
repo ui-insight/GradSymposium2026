@@ -27,7 +27,7 @@ export function AdminShell() {
           </div>
           <div className="mt-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f5d36e]">
-              Graduate Student Symposium
+              Conference Administration
             </p>
             <h1 className="mt-2 text-xl font-semibold text-white">Administration Hub</h1>
             <p className="mt-2 text-sm leading-6 text-[#d7ccb9]">

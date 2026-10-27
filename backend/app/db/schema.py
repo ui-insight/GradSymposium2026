@@ -15,6 +15,34 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
     dialect = sync_conn.dialect.name
     default_true = "TRUE" if dialect == "postgresql" else "1"
 
+    default_false = "FALSE" if dialect == "postgresql" else "0"
+    for table, name, definition in (
+        ("Event", "Event_End_Date", "DATE"),
+        (
+            "Event",
+            "Public_Poster_Lookup_Enabled",
+            f"BOOLEAN NOT NULL DEFAULT {default_false}",
+        ),
+        ("Project", "Presenter_Display_Name", "VARCHAR(300)"),
+        ("Project", "Institution", "VARCHAR(200)"),
+        ("Project", "Is_Published", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
+        ("Project", "Source_Submission_Key", "VARCHAR(128)"),
+        ("Project", "Roster_Review", "JSON"),
+        (
+            "Project",
+            "Roster_Review_Required",
+            f"BOOLEAN NOT NULL DEFAULT {default_false}",
+        ),
+    ):
+        _ensure_column(sync_conn, inspector, table, name, f'"{name}" {definition}')
+
+    # create_all does not add indexes to an existing table.
+    from app.models.project import Project
+
+    for index in Project.__table__.indexes:
+        if index.name == "uq_project_source_submission":
+            index.create(sync_conn, checkfirst=True)
+
     _ensure_column(
         sync_conn,
         inspector,

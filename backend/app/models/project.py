@@ -22,6 +22,16 @@ class Project(Base):
     Presenter_First_Name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     Presenter_Last_Name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     Presenter_Email: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
+    Presenter_Display_Name: Mapped[str | None] = mapped_column(sa.String(300))
+    Institution: Mapped[str | None] = mapped_column(sa.String(200))
+    Source_Submission_Key: Mapped[str | None] = mapped_column(sa.String(128))
+    Roster_Review: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    Roster_Review_Required: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
+    Is_Published: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
     Department: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     College: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     Advisor_Name: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
@@ -36,8 +46,16 @@ class Project(Base):
     )
 
     __table_args__ = (
+        sa.Index(
+            "uq_project_source_submission",
+            "Event_ID",
+            "Source_Submission_Key",
+            unique=True,
+        ),
         sa.UniqueConstraint(
             "Event_ID", "Project_Number", name="uq_project_number_per_event"
         ),
-        sa.CheckConstraint("\"Category\" IN ('Poster', 'Art')", name="ck_project_category"),
+        sa.CheckConstraint(
+            "\"Category\" IN ('Poster', 'Art')", name="ck_project_category"
+        ),
     )

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     secret_key: str = _DEFAULT_SECRET
     access_token_expire_minutes: int = 480  # 8 hours (covers full event day)
     dev_mode: bool = True
+    seed_historical_event: bool = True
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     model_config = {
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
         if self.dev_mode:
             log.warning(
                 "\n" + "=" * 60 + "\n"
-                "  DEV_MODE is ON — seed data will be loaded.\n"
+                "  DEV_MODE is ON.\n"
                 "  DO NOT use DEV_MODE=true in production.\n" + "=" * 60
             )
         if self.secret_key == _DEFAULT_SECRET:

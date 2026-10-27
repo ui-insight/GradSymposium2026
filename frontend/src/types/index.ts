@@ -2,6 +2,8 @@ export interface Event {
   Event_ID: string;
   Event_Name: string;
   Event_Date: string;
+  Event_End_Date: string | null;
+  Public_Poster_Lookup_Enabled: boolean;
   Location: string | null;
   Description: string | null;
   Is_Active: boolean;
@@ -16,6 +18,21 @@ export interface Project {
   Presenter_First_Name: string;
   Presenter_Last_Name: string;
   Presenter_Email: string | null;
+  Presenter_Display_Name: string | null;
+  Institution: string | null;
+  Is_Published: boolean;
+  Roster_Review_Required: boolean;
+  Roster_Review: {
+    source_file: string;
+    source_sheet: string;
+    source_row: number;
+    source_sha256: string;
+    requested_formats: string;
+    current_position: string;
+    submitted_at: string;
+    flags: string[];
+    duplicate_rows: number[];
+  } | null;
   Department: string | null;
   College: string | null;
   Advisor_Name: string | null;
@@ -177,4 +194,25 @@ export interface CSVImportResult {
   imported: number;
   skipped: number;
   errors: string[];
+  preview: Project[];
+}
+
+export interface PublicEvent {
+  Event_Name: string;
+  Event_Date: string;
+  Event_End_Date: string | null;
+  Location: string | null;
+}
+
+export interface PublicPoster {
+  Project_Number: string;
+  Project_Title: string;
+  Presenter_Display_Name: string;
+  Institution: string | null;
+  Table_Number: string | null;
+}
+
+export interface PublicPosterDirectory {
+  event: PublicEvent | null;
+  posters: PublicPoster[];
 }
