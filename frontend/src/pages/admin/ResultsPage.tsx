@@ -348,7 +348,7 @@ export function ResultsPage() {
                 <td className="px-4 py-3 font-mono">{r.Project_Number}</td>
                 <td className="px-4 py-3 max-w-xs truncate">{r.Project_Title}</td>
                 <td className="px-4 py-3">
-                  {r.Presenter_First_Name} {r.Presenter_Last_Name}
+                  {r.Presenter_Display_Name || `${r.Presenter_First_Name} ${r.Presenter_Last_Name}`}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{r.Department || '—'}</td>
                 <td className="px-4 py-3">
@@ -408,8 +408,7 @@ export function ResultsPage() {
                     {selectedProject.Project_Title}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {selectedProject.Presenter_First_Name}{' '}
-                    {selectedProject.Presenter_Last_Name}
+                    {selectedProject.Presenter_Display_Name || `${selectedProject.Presenter_First_Name} ${selectedProject.Presenter_Last_Name}`}
                     {selectedProject.Department && ` • ${selectedProject.Department}`}
                   </p>
                 </div>

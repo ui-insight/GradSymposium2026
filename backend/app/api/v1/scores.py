@@ -3,7 +3,6 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,7 +103,9 @@ async def get_project_score_review(
             select(ScoreOverride, User.Username)
             .join(User, ScoreOverride.Admin_User_ID == User.User_ID)
             .where(ScoreOverride.Score_ID.in_(score_ids))
-            .order_by(ScoreOverride.Overridden_At.asc(), ScoreOverride.Override_ID.asc())
+            .order_by(
+                ScoreOverride.Overridden_At.asc(), ScoreOverride.Override_ID.asc()
+            )
         )
         for override, username in override_rows.all():
             overrides_by_score.setdefault(override.Score_ID, []).append(
@@ -163,6 +164,7 @@ async def get_project_score_review(
         Project_Title=project.Project_Title,
         Presenter_First_Name=project.Presenter_First_Name,
         Presenter_Last_Name=project.Presenter_Last_Name,
+        Presenter_Display_Name=project.Presenter_Display_Name,
         Department=project.Department,
         Category=project.Category,
         submissions=list(submissions.values()),

@@ -25,7 +25,7 @@ export function JudgeProjectListPage() {
     return (
       p.Project_Number.toLowerCase().includes(term) ||
       p.Project_Title.toLowerCase().includes(term) ||
-      `${p.Presenter_First_Name} ${p.Presenter_Last_Name}`.toLowerCase().includes(term)
+      (p.Presenter_Display_Name || `${p.Presenter_First_Name} ${p.Presenter_Last_Name}`).toLowerCase().includes(term)
     );
   });
 
@@ -115,7 +115,7 @@ function ProjectCard({ project: p }: { project: JudgeProject }) {
           </div>
           <p className="truncate text-base text-gray-700 sm:text-sm">{p.Project_Title}</p>
           <p className="mt-1 text-sm text-gray-500 sm:text-xs">
-            {p.Presenter_First_Name} {p.Presenter_Last_Name}
+            {p.Presenter_Display_Name || `${p.Presenter_First_Name} ${p.Presenter_Last_Name}`}
             {p.Department && ` — ${p.Department}`}
           </p>
         </div>

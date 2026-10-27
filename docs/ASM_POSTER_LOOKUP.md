@@ -57,6 +57,12 @@ Publication is blocked while any active record requires roster review. An
 unresolved record is also excluded by the public API even if its publication
 flag is set independently.
 
+Use **Approve inclusion** on a flagged active submission after checking its source
+details. Confirm the decision to clear its review block while keeping it in draft;
+the source annotations retain the approving admin ID and UTC timestamp. Withdraw
+superseded duplicates or submissions that should not be included. Approval does
+not publish the directory, and re-staging the identical snapshot preserves it.
+
 ## Separate ASM setup
 
 Use a separate database/volume for ASM. Do not run these commands against the
@@ -134,7 +140,9 @@ Example microbial research,"Alex Rivera, Sam Lee",Poster,University of Idaho,B-1
 4. Correct names, titles, institutions, and locations with **Edit**. Edits preserve
    the number and return the poster to draft. For private contact/name-field
    corrections beyond the display name, use the authenticated project PATCH API.
-5. Review the complete roster, then **Publish active posters** and confirm. Check
+5. Approve inclusion for flagged submissions you are keeping, and withdraw those
+   you are excluding. Review the complete roster, then **Publish active posters**
+   and confirm. Check
    `/posters` and the directory QR code from an attendee's phone.
 6. Use **Hide directory** to withdraw public access without removing records.
 

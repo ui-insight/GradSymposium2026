@@ -248,7 +248,7 @@ export function AssignmentsPage() {
                     <th
                       key={p.Project_ID}
                       className={`px-0.5 py-2 text-center font-medium min-w-[40px] ${headerColor}`}
-                      title={`${p.Project_Number}: ${p.Presenter_First_Name} ${p.Presenter_Last_Name} (${count}/${judgesPerProject} judges)`}
+                      title={`${p.Project_Number}: ${p.Presenter_Display_Name || `${p.Presenter_First_Name} ${p.Presenter_Last_Name}`} (${count}/${judgesPerProject} judges)`}
                     >
                       <div className="[writing-mode:vertical-lr] rotate-180 mx-auto whitespace-nowrap text-[10px] h-16 flex items-center justify-center">
                         {p.Project_Number}

@@ -1,5 +1,6 @@
 """Project management routes (admin only)."""
 
+import datetime
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
@@ -242,6 +243,33 @@ async def withdraw_project(
     await db.execute(
         delete(JudgeAssignment).where(JudgeAssignment.Project_ID == project_id)
     )
+    await db.commit()
+    await db.refresh(project)
+    return _project_to_read(project, _active_score_count(project))
+
+
+@router.post("/{project_id}/approve-roster", response_model=ProjectRead)
+async def approve_roster(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    await lock_event_numbers(db, project.Event_ID)
+    await db.refresh(project)
+    if not project.Is_Active or not project.Roster_Review_Required:
+        raise HTTPException(
+            status_code=409, detail="Project is not awaiting an active roster decision"
+        )
+    project.Roster_Review = {
+        **(project.Roster_Review or {}),
+        "approved_by": admin.User_ID,
+        "approved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    project.Roster_Review_Required = False
+    project.Is_Published = False
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, _active_score_count(project))

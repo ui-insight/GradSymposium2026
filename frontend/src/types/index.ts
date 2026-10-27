@@ -82,6 +82,7 @@ export interface ProjectResult {
   Project_Title: string;
   Presenter_First_Name: string;
   Presenter_Last_Name: string;
+  Presenter_Display_Name: string | null;
   Department: string | null;
   Category: string;
   Judge_Count: number;
@@ -127,6 +128,7 @@ export interface ProjectScoreReview {
   Project_Title: string;
   Presenter_First_Name: string;
   Presenter_Last_Name: string;
+  Presenter_Display_Name: string | null;
   Department: string | null;
   Category: string;
   submissions: JudgeScoreReview[];
@@ -148,6 +150,7 @@ export interface JudgeProject {
   Project_Title: string;
   Presenter_First_Name: string;
   Presenter_Last_Name: string;
+  Presenter_Display_Name: string | null;
   Department: string | null;
   Category: 'Poster' | 'Art';
   Table_Number: string | null;
@@ -161,6 +164,7 @@ export interface JudgeProjectDetail {
   Project_Title: string;
   Presenter_First_Name: string;
   Presenter_Last_Name: string;
+  Presenter_Display_Name: string | null;
   Department: string | null;
   Category: string;
   Table_Number: string | null;

@@ -140,7 +140,7 @@ export function JudgeScoringPage() {
           {detail.Project_Title}
         </h2>
         <p className="text-base text-gray-500 sm:text-sm">
-          {detail.Presenter_First_Name} {detail.Presenter_Last_Name}
+          {detail.Presenter_Display_Name || `${detail.Presenter_First_Name} ${detail.Presenter_Last_Name}`}
           {detail.Department && ` — ${detail.Department}`}
         </p>
       </div>

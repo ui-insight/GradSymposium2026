@@ -544,3 +544,185 @@ async def test_unresolved_review_rows_cannot_leak_if_marked_published(context):
             row.Is_Published = True
         await db.commit()
     assert (await directory(client))["posters"] == []
+
+
+@pytest.mark.asyncio
+async def test_organizer_can_resolve_source_review_without_publishing(context):
+    from app.services.asm_roster import prepare_submissions, stage_submissions
+
+    client, sessions, app = context
+    submissions = prepare_submissions(
+        source_fixture(), "source.xlsx", "hash", "Form Responses 1"
+    )
+    async with sessions() as db:
+        report = await stage_submissions(db, "asm", submissions)
+        await db.commit()
+    first, duplicate, talk, _ = report["records"]
+    first_url = f"/api/v1/projects/{first['project_id']}/approve-roster"
+    admin_override = app.dependency_overrides.pop(get_current_admin)
+    assert (await client.post(first_url)).status_code == 401
+    app.dependency_overrides[get_current_admin] = admin_override
+    for record in (first, talk):
+        response = await client.post(
+            f"/api/v1/projects/{record['project_id']}/approve-roster"
+        )
+        assert response.status_code == 200, response.text
+        assert not response.json()["Roster_Review_Required"]
+        assert not response.json()["Is_Published"]
+        assert response.json()["Roster_Review"]["approved_by"] == "test-admin"
+        assert response.json()["Roster_Review"]["approved_at"]
+    duplicate_url = f"/api/v1/projects/{duplicate['project_id']}"
+    await client.post(f"{duplicate_url}/withdraw")
+    assert (await client.post(f"{duplicate_url}/approve-roster")).status_code == 409
+    assert (await directory(client))["posters"] == []
+    async with sessions() as db:
+        repeated = await stage_submissions(db, "asm", submissions)
+        await db.commit()
+    assert repeated["records"][0]["review"]["approved_by"] == "test-admin"
+    assert not repeated["records"][0]["review_required"]
+    assert (await publish(client)).status_code == 200
+    assert len((await directory(client))["posters"]) == 3
+    assert "approved_by" not in str(await directory(client))
+
+
+async def scoring_setup(context):
+    from app.api.deps import get_current_judge
+    from app.models.judge import Judge
+    from app.models.rubric import Rubric
+    from app.models.rubric_criterion import RubricCriterion
+
+    client, sessions, app = context
+    project = await create(
+        client,
+        Presenter_First_Name="",
+        Presenter_Last_Name="",
+        Presenter_Display_Name="Jo Chen and Pat Rivera",
+    )
+    async with sessions() as db:
+        judge = Judge(
+            Event_ID="asm", First_Name="Test", Last_Name="Judge", Access_Code="ABC123"
+        )
+        rubric = Rubric(
+            Event_ID="asm", Rubric_Name="Poster", Category="Poster", Max_Score=6
+        )
+        db.add_all([judge, rubric])
+        await db.flush()
+        criteria = [
+            RubricCriterion(Rubric_ID=rubric.Rubric_ID, Criterion_Name=name)
+            for name in ("Content", "Communication")
+        ]
+        db.add_all(criteria)
+        await db.commit()
+    app.dependency_overrides[get_current_judge] = lambda: judge
+    return project, judge, criteria
+
+
+@pytest.mark.asyncio
+async def test_display_names_survive_judging_results_review_and_export(context):
+    import io
+
+    from openpyxl import load_workbook
+
+    client, _, _ = context
+    project, _, criteria = await scoring_setup(context)
+    name = project["Presenter_Display_Name"]
+    project_id = project["Project_ID"]
+    listed = (await client.get("/api/v1/judge/projects")).json()
+    assert listed[0]["Presenter_Display_Name"] == name
+    detail = (await client.get(f"/api/v1/judge/projects/{project_id}")).json()
+    assert detail["Presenter_Display_Name"] == name
+    response = await client.post(
+        f"/api/v1/judge/projects/{project_id}/scores",
+        json={
+            "scores": [
+                {"Criterion_ID": c.Criterion_ID, "Score_Value": 3} for c in criteria
+            ]
+        },
+    )
+    assert response.status_code == 200, response.text
+    results = (await client.get("/api/v1/results/?event_id=asm")).json()
+    assert results[0]["Presenter_Display_Name"] == name
+    review = (await client.get(f"/api/v1/scores/review/{project_id}")).json()
+    assert review["Presenter_Display_Name"] == name
+    exported = await client.get("/api/v1/results/export?event_id=asm")
+    workbook = load_workbook(io.BytesIO(exported.content))
+    assert workbook["Poster Rankings"].cell(2, 4).value == name
+
+
+@pytest.mark.asyncio
+async def test_submission_deactivation_updates_all_counts_and_retains_rows(context):
+    from app.models.feedback import Feedback
+    from app.models.score import Score
+
+    client, sessions, _ = context
+    project, judge, criteria = await scoring_setup(context)
+    project_id = project["Project_ID"]
+    payload = {
+        "scores": [
+            {"Criterion_ID": c.Criterion_ID, "Score_Value": 3} for c in criteria
+        ],
+        "feedback": "Useful work",
+    }
+    assert (
+        await client.post(f"/api/v1/judge/projects/{project_id}/scores", json=payload)
+    ).status_code == 200
+    summary = await client.get("/api/v1/results/summary?event_id=asm")
+    assert summary.status_code == 200, summary.text
+    assert summary.json()["Total_Scores_Submitted"] == 1
+    assert summary.json()["Scoring_Coverage_Percent"] == 100
+    await client.post(f"/api/v1/projects/{project_id}/withdraw")
+    summary = (await client.get("/api/v1/results/summary?event_id=asm")).json()
+    assert summary["Total_Scores_Submitted"] == 0
+    assert summary["Projects_With_Scores"] == 0
+    await client.post(f"/api/v1/projects/{project_id}/reinstate")
+    response = await client.delete(
+        f"/api/v1/scores/submissions/{project_id}/{judge.Judge_ID}"
+    )
+    assert response.status_code == 204
+    assert (await client.get("/api/v1/results/?event_id=asm")).json() == []
+    assert (await client.get("/api/v1/results/activity?event_id=asm")).json() == []
+    assert (await client.get("/api/v1/judge/my-scores")).json() == []
+    assert not (await client.get("/api/v1/judge/projects")).json()[0]["is_scored"]
+    summary = (await client.get("/api/v1/results/summary?event_id=asm")).json()
+    assert summary["Total_Scores_Submitted"] == 0
+    assert summary["Scoring_Coverage_Percent"] == 0
+    async with sessions() as db:
+        scores = list(await db.scalars(select(Score)))
+        assert len(scores) == 2
+        assert all(not score.Is_Active for score in scores)
+        assert not (await db.scalar(select(Feedback))).Is_Active
+        original_ids = {score.Score_ID for score in scores}
+    assert (
+        await client.post(f"/api/v1/judge/projects/{project_id}/scores", json=payload)
+    ).status_code == 200
+    async with sessions() as db:
+        scores = list(await db.scalars(select(Score)))
+        assert {score.Score_ID for score in scores} == original_ids
+        assert all(score.Is_Active for score in scores)
+    assert (await client.get("/api/v1/results/?event_id=asm")).json()[0][
+        "Total_Score"
+    ] == 6
+
+
+@pytest.mark.asyncio
+async def test_judge_detail_cannot_read_other_events_or_withdrawn_projects(context):
+    client, sessions, _ = context
+    project, _, _ = await scoring_setup(context)
+    async with sessions() as db:
+        db.add(
+            Event(
+                Event_ID="private-event",
+                Event_Name="Private event",
+                Event_Date=datetime.date(2026, 3, 13),
+                Is_Active=False,
+            )
+        )
+        await db.commit()
+    other = await create(client, Event_ID="private-event", Project_Title="Private")
+    assert (
+        await client.get(f"/api/v1/judge/projects/{other['Project_ID']}")
+    ).status_code == 404
+    await client.post(f"/api/v1/projects/{project['Project_ID']}/withdraw")
+    assert (
+        await client.get(f"/api/v1/judge/projects/{project['Project_ID']}")
+    ).status_code == 404

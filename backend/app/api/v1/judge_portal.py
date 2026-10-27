@@ -97,6 +97,7 @@ async def judge_projects(
                 "Project_Title": p.Project_Title,
                 "Presenter_First_Name": p.Presenter_First_Name,
                 "Presenter_Last_Name": p.Presenter_Last_Name,
+                "Presenter_Display_Name": p.Presenter_Display_Name,
                 "Department": p.Department,
                 "Category": p.Category,
                 "Table_Number": p.Table_Number,
@@ -106,7 +107,9 @@ async def judge_projects(
         )
 
     # Sort: assigned first, then by category and number
-    result.sort(key=lambda x: (not x["is_assigned"], x["Category"], x["Project_Number"]))
+    result.sort(
+        key=lambda x: (not x["is_assigned"], x["Category"], x["Project_Number"])
+    )
     return result
 
 
@@ -118,7 +121,11 @@ async def judge_project_detail(
 ):
     """Get project detail with rubric and any existing scores."""
     proj_result = await db.execute(
-        select(Project).where(Project.Project_ID == project_id)
+        select(Project).where(
+            Project.Project_ID == project_id,
+            Project.Event_ID == judge.Event_ID,
+            Project.Is_Active.is_(True),
+        )
     )
     project = proj_result.scalar_one_or_none()
     if not project:
@@ -141,7 +148,9 @@ async def judge_project_detail(
             Score.Is_Active.is_(True),
         )
     )
-    existing_scores = {s.Criterion_ID: s.Score_Value for s in score_result.scalars().all()}
+    existing_scores = {
+        s.Criterion_ID: s.Score_Value for s in score_result.scalars().all()
+    }
 
     # Older dev databases may not have feedback storage yet.
     existing_feedback = None
@@ -188,12 +197,15 @@ async def judge_project_detail(
         "Project_Title": project.Project_Title,
         "Presenter_First_Name": project.Presenter_First_Name,
         "Presenter_Last_Name": project.Presenter_Last_Name,
+        "Presenter_Display_Name": project.Presenter_Display_Name,
         "Department": project.Department,
         "Category": project.Category,
         "Table_Number": project.Table_Number,
         "rubric": rubric_data,
         "existing_scores": existing_scores,
-        "existing_feedback": existing_feedback.Feedback_Text if existing_feedback else None,
+        "existing_feedback": existing_feedback.Feedback_Text
+        if existing_feedback
+        else None,
     }
 
 

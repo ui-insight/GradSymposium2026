@@ -20,8 +20,14 @@ export function ProjectsPage() {
   const [search, setSearch] = useState('');
   const [confirm, setConfirm] = useState<'publish' | 'hide' | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [approving, setApproving] = useState<Project | null>(null);
   const [editing, setEditing] = useState<Project | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const approvalRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (approving) approvalRef.current?.focus();
+  }, [approving]);
 
   const loadData = useCallback(async () => {
     const ev = await apiFetch<Event | null>('/events/active');
@@ -178,6 +184,19 @@ export function ProjectsPage() {
         <div className="flex gap-2"><button disabled={busy} className={`${buttonClass} bg-green-600`}>Save draft</button><button type="button" disabled={busy} onClick={() => setEditing(null)} className={buttonClass}>Cancel</button></div>
       </form>}
 
+      {approving && <section ref={approvalRef} tabIndex={-1} aria-labelledby="approve-heading" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
+        <h2 id="approve-heading" className="text-lg font-semibold">Include {approving.Project_Number} in the poster roster?</h2>
+        <p className="mt-2 font-semibold">{approving.Presenter_Display_Name || `${approving.Presenter_First_Name} ${approving.Presenter_Last_Name}`}</p>
+        <p className="mt-1">{approving.Project_Title}</p>
+        <p className="mt-3 max-w-[70ch] text-sm leading-6">Confirm that you have checked the source flags and this submission should remain in the poster roster. Withdraw any superseded duplicate separately. This records your decision and keeps the poster in draft until publication.</p>
+        <div className="mt-4 flex gap-2"><button disabled={busy} onClick={() => run(async () => {
+          await apiFetch(`/projects/${approving.Project_ID}/approve-roster`, { method: 'POST' });
+          setApproving(null);
+          setMessage('Roster inclusion approved. The poster remains a draft until publication.');
+          await loadData();
+        })} className={buttonClass}>Confirm inclusion</button><button disabled={busy} onClick={() => setApproving(null)} className={buttonClass}>Cancel</button></div>
+      </section>}
+
       <label className="mb-4 block text-sm font-semibold">Search draft roster<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, poster number, title, or institution" className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 font-normal" /></label>
       <div className="mb-4 flex flex-wrap gap-2" aria-label="Project categories">
         {['', 'Poster', 'Art'].map(category => <button key={category} aria-pressed={filter === category} onClick={() => setFilter(category)} className={`${buttonClass} ${filter === category ? 'bg-blue-100' : ''}`}>{category || 'All'} ({category ? projects.filter(project => project.Category === category).length : projects.length})</button>)}
@@ -203,6 +222,7 @@ export function ProjectsPage() {
                 <details className="mt-2"><summary className="cursor-pointer">Source details</summary><p className="mt-1 break-words">{project.Roster_Review.source_file}, {project.Roster_Review.source_sheet}</p><p className="mt-1">Requested: {project.Roster_Review.requested_formats}</p></details>
               </> : '—'}</td>
               <td className="px-4 py-3 align-top">
+                {project.Is_Active && project.Roster_Review_Required && <button disabled={busy} onClick={() => { setApproving(project); setEditing(null); }} className={`${buttonClass} mb-2`}>Approve inclusion<span className="sr-only"> {project.Project_Number}</span></button>}
                 <div className="flex gap-2"><button disabled={busy} onClick={() => setEditing({ ...project, Presenter_Display_Name: project.Presenter_Display_Name || `${project.Presenter_First_Name} ${project.Presenter_Last_Name}`.trim() })} className={buttonClass}>Edit<span className="sr-only"> {project.Project_Number}</span></button>
                   {project.Is_Active ? <button disabled={busy} onClick={() => setConfirmId(project.Project_ID)} className={buttonClass}>Withdraw<span className="sr-only"> {project.Project_Number}</span></button> : <button disabled={busy} onClick={() => run(async () => { await apiFetch(`/projects/${project.Project_ID}/reinstate`, { method: 'POST' }); await loadData(); })} className={buttonClass}>Reinstate</button>}</div>
                 {confirmId === project.Project_ID && <div className="mt-3"><p>Withdraw {project.Project_Number}? Its number stays reserved.</p><div className="mt-2 flex gap-2"><button disabled={busy} onClick={() => run(async () => { await apiFetch(`/projects/${project.Project_ID}/withdraw`, { method: 'POST' }); setConfirmId(null); await loadData(); })} className={buttonClass}>Confirm</button><button onClick={() => setConfirmId(null)} className={buttonClass}>Cancel</button></div></div>}

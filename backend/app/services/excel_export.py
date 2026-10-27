@@ -15,8 +15,9 @@ def export_results_to_excel(
     """Generate an Excel workbook with ranked results."""
     wb = Workbook()
 
-    header_font = Font(bold=True, size=12)
-    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_fill = PatternFill(
+        start_color="4472C4", end_color="4472C4", fill_type="solid"
+    )
     header_font_white = Font(bold=True, size=11, color="FFFFFF")
 
     columns = [
@@ -47,7 +48,8 @@ def export_results_to_excel(
             ws.cell(
                 row=row_idx,
                 column=4,
-                value=f"{r.Presenter_First_Name} {r.Presenter_Last_Name}",
+                value=r.Presenter_Display_Name
+                or f"{r.Presenter_First_Name} {r.Presenter_Last_Name}".strip(),
             )
             ws.cell(row=row_idx, column=5, value=r.Department or "")
             ws.cell(row=row_idx, column=6, value=r.Judge_Count)
@@ -60,9 +62,9 @@ def export_results_to_excel(
                 len(str(ws.cell(row=r, column=col).value or ""))
                 for r in range(1, ws.max_row + 1)
             )
-            ws.column_dimensions[
-                ws.cell(row=1, column=col).column_letter
-            ].width = min(max_len + 4, 50)
+            ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = min(
+                max_len + 4, 50
+            )
 
     # Poster sheet
     ws_poster = wb.active
