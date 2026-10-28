@@ -83,6 +83,24 @@ export interface VotingSummary {
   Tallies_Available: boolean;
   missing: string[];
   tally: VoteTally[];
+  Top_Ten_Report: AttendeeChoiceReport | null;
+}
+
+export interface AttendeeChoiceEntry {
+  Project_Number: string;
+  Presenter_Display_Name: string;
+  Project_Title: string;
+  Votes: number;
+  Vote_Rank: number;
+  Tied_Count: number;
+}
+
+export interface AttendeeChoiceReport {
+  Eligible_Count: number;
+  Top_Ten: AttendeeChoiceEntry[];
+  Additional_Cutoff_Ties: AttendeeChoiceEntry[];
+  Cutoff_Votes: number | null;
+  Cutoff_Spans_Ten: boolean;
 }
 
 export interface SavedBallot {
