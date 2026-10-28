@@ -63,6 +63,77 @@ the source annotations retain the approving admin ID and UTC timestamp. Withdraw
 superseded duplicates or submissions that should not be included. Approval does
 not publish the directory, and re-staging the identical snapshot preserves it.
 
+Flag approval alone is not final roster approval. For staged source events, use
+**Final roster review** to record the complete accepted/withdrawn/pending list,
+reconcile the source count and record an organizer sign-off of the exact preview.
+Publication requires that current sign-off. Historical events without source
+annotations or final-review history retain their existing publication workflow.
+
+## Final roster review
+
+Open **Final roster review** in Administration and select the intended event.
+All source candidates and later additions need an explicit final inclusion
+decision, including source rows without original warning flags. Acceptance never
+sets judging eligibility, voting eligibility or award groups.
+
+1. Check the source counts, sheet and SHA-256 against the private import manifest
+   and unchanged workbook. Source candidates plus later additions must reconcile
+   to accepted + withdrawn + pending. Source-linked records cannot be deleted.
+2. Compare each duplicate pair side by side. The interface displays the complete
+   names/titles, original row numbers and timestamps as recorded. Confirm the
+   source details before keeping the strictly later version and withdrawing its
+   predecessor. This is atomic and records the retained Project_ID as provenance;
+   both numbers remain reserved. Unknown/equal/incomparable timestamps require
+   source clarification. Do not guess. If a flag represents genuinely different
+   presentations, explicitly verify that distinction with a recorded reason.
+3. Filter talk-only requests and record each inclusion/exclusion. Acceptance
+   requires an explicit organizer confirmation of poster participation. For
+   ordinary candidates, select the reviewed records, choose an action and record
+   a source/reason. Blank decisions never count as acceptance.
+4. Correct existing records with **Correct metadata**, preserving their IDs and
+   numbers. Keep full co-presenter names together. Corrections return inclusion
+   to pending; decision history retains earlier names/titles and reviewers.
+5. Use **Upload final additions, corrections and removals** for reviewed CSV
+   changes. Download the current change sheet. Set `Action` to `add`, `correct`,
+   `accept`, `withdraw` or `reopen` and supply `Reason`. Blank actions are skipped;
+   omitted rows do not withdraw anything. Existing changes require the exact
+   Project_ID, unchanged issued number and current Review_Context. Source columns
+   are read-only. For talk-only acceptance set `Talk_Only_Confirmed=true`.
+   Resolve duplicate acceptance through the on-screen comparison.
+6. For `add`, leave ID and number empty and supply `Title` and full
+   `Presenter_Display_Name`; institution, advisor, location and optional `Email`
+   may be supplied. Possible existing names, contacts and titles require review
+   against the existing record rather than accidental duplicate creation. New
+   drafts receive the next unused number and still need an inclusion decision.
+   Existing contact corrections use the authenticated project PATCH API; the
+   final-change sheet does not export private contacts.
+7. Preview every CSV change before applying. Any error prevents the entire batch.
+   A concurrent roster, assignment, score-count or numbering change requires a
+   fresh preview. Number previews roll back reservations. Existing IDs/numbers
+   are never reassigned, even after withdrawal or reinstatement.
+8. Open the accepted-only directory preview. It includes the attendee fields only,
+   with full co-presenters and unassigned locations labelled clearly. Confirm the
+   accepted count and original source count, record the organizer approval
+   reference, and attest that final changes/talk-only decisions and the preview
+   were checked. Signing off does not publish.
+9. Download the reconciliation/operating report and retain it in the private
+   operating guide. It records counts, source hashes, sign-off/reference and the
+   accepted directory without private contacts, PI/lab text or source workbooks.
+   Use **Publication and eligibility controls** for the separate publication step.
+
+Decisions are append-only and scoped to an authenticated administrator. Withdrawal
+clears assignments while retaining scores and decision history. Reinstatement
+returns the record to pending. Metadata corrections, additions/removals or new
+inclusion decisions invalidate the prior exact-content sign-off. For final-review
+events the ordinary published directory then fails closed until a new sign-off;
+corrected/new records remain drafts until republished. Competition eligibility
+changes alone do not invalidate acceptance or final roster sign-off.
+
+The explicit public dev **draft** preview remains a separate testing mode. It can
+show unconfirmed active candidates and is not the accepted-only final preview.
+No real final additions/removals, talk-only choices or organizer sign-off have
+been applied by implementing this workflow. Issue #11 remains an organizer task.
+
 ## Separate ASM setup
 
 ### Public dev preview
@@ -161,7 +232,8 @@ Example microbial research,"Alex Rivera, Sam Lee",Poster,University of Idaho,B-1
    the number and return the poster to draft. For private contact/name-field
    corrections beyond the display name, use the authenticated project PATCH API.
 5. Approve inclusion for flagged submissions you are keeping, and withdraw those
-   you are excluding. Review the complete roster, then **Publish active posters**
+   you are excluding. For source/final-review events, complete **Final roster
+   review** and its sign-off. Review the complete roster, then **Publish active posters**
    and confirm. Check
    `/posters` and the directory QR code from an attendee's phone.
 6. Use **Hide directory** to withdraw public access without removing records.

@@ -10,15 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
 from app.models.ballot_selection import BallotSelection
-from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.judge_assignment import JudgeAssignment
 from app.models.judge_conflict import JudgeConflict
 from app.models.mentor_review import MentorReview
 from app.models.project import Project
+from app.models.roster_review import RosterDecision
 from app.models.score import Score
 from app.models.user import User
-from app.models.voting_round import VotingRound
 from app.schemas.project import (
     CSVImportResult,
     PosterPublication,
@@ -28,7 +27,14 @@ from app.schemas.project import (
 )
 from app.services.competition import lock_event
 from app.services.csv_import import import_projects_from_csv
+from app.services.project_changes import (
+    correct_project,
+)
+from app.services.project_changes import (
+    withdraw_project as apply_withdrawal,
+)
 from app.services.project_numbering import lock_event_numbers, reserve_number
+from app.services.roster_review import final_roster_ready
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -169,6 +175,10 @@ async def publish_posters(
                 status_code=409,
                 detail=f"Review {review_count} submissions before publishing",
             )
+    if body.Is_Published and not await final_roster_ready(db, body.Event_ID):
+        raise HTTPException(
+            409, "Review and sign off the current final roster before publishing"
+        )
     statement = update(Project).where(
         Project.Event_ID == body.Event_ID, Project.Category == "Poster"
     )
@@ -206,59 +216,7 @@ async def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
     await lock_event(db, project.Event_ID)
     await db.refresh(project)
-    if (
-        "Project_Number" in body.model_fields_set
-        and body.Project_Number != project.Project_Number
-    ):
-        raise HTTPException(
-            status_code=409, detail="Issued poster numbers cannot be changed"
-        )
-    if "Category" in body.model_fields_set and body.Category != project.Category:
-        raise HTTPException(
-            status_code=409, detail="Numbered project categories cannot be changed"
-        )
-    rules = await db.get(CompetitionSettings, project.Event_ID)
-    if (
-        rules
-        and rules.Judging_Open
-        and any(
-            getattr(body, key) != getattr(project, key)
-            for key in body.model_fields_set & {"Judging_Eligible", "Award_Groups"}
-        )
-    ):
-        raise HTTPException(
-            409, "Close judging before changing eligibility or award groups"
-        )
-    if (
-        "Voting_Eligible" in body.model_fields_set
-        and body.Voting_Eligible != project.Voting_Eligible
-        and await db.scalar(
-            select(VotingRound.Round_ID).where(
-                VotingRound.Event_ID == project.Event_ID, VotingRound.Status == "open"
-            )
-        )
-    ):
-        raise HTTPException(
-            409,
-            "Close voting rounds before changing voting eligibility; "
-            "use withdrawal for a withdrawal",
-        )
-    required = {"Project_Title", "Presenter_First_Name", "Presenter_Last_Name"}
-    if any(getattr(body, field) is None for field in body.model_fields_set & required):
-        raise HTTPException(status_code=422, detail="Required fields cannot be null")
-    merged = {key: getattr(project, key) for key in ProjectCreate.model_fields}
-    merged.update(body.model_dump(exclude_unset=True))
-    try:
-        validated = ProjectCreate.model_validate(merged)
-        if "Award_Groups" in body.model_fields_set:
-            body.Award_Groups = validated.Award_Groups
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422, detail="Provide a title and presenter name"
-        ) from exc
-    for key, val in body.model_dump(exclude_unset=True).items():
-        setattr(project, key, val)
-    project.Is_Published = False
+    await correct_project(db, project, body)
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, _active_score_count(project))
@@ -279,11 +237,7 @@ async def withdraw_project(
     await db.refresh(project)
     if not project.Is_Active:
         raise HTTPException(status_code=400, detail="Project is already withdrawn")
-    project.Is_Active = False
-    project.Is_Published = False
-    await db.execute(
-        delete(JudgeAssignment).where(JudgeAssignment.Project_ID == project_id)
-    )
+    await apply_withdrawal(db, project)
     await db.commit()
     await db.refresh(project)
     return _project_to_read(project, _active_score_count(project))
@@ -364,6 +318,13 @@ async def delete_project(
         )
         or await db.scalar(
             select(MentorReview.Review_ID).where(MentorReview.Project_ID == project_id)
+        )
+        or project.Source_Submission_Key is not None
+        or await db.scalar(
+            select(RosterDecision.Decision_ID).where(
+                (RosterDecision.Project_ID == project_id)
+                | (RosterDecision.Superseded_By == project_id)
+            )
         )
         or project.scores
     ):

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth';
 const navItems = [
   { path: '/admin/dashboard', label: 'Dashboard' },
   { path: '/admin/projects', label: 'Projects' },
+  { path: '/admin/roster-review', label: 'Final roster review' },
   { path: '/admin/judges', label: 'Judges' },
   { path: '/admin/mentor-review', label: 'Mentor conflicts' },
   { path: '/admin/assignments', label: 'Assignments' },
