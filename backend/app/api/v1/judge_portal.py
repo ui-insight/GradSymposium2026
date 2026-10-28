@@ -20,6 +20,7 @@ from app.models.project import Project
 from app.models.rubric import Rubric
 from app.models.score import Score
 from app.schemas.auth import JudgeLogin, TokenResponse
+from app.schemas.judge import JudgeNameUpdate, JudgeProfileRead
 from app.schemas.score import ScoreSubmission
 from app.services.competition import (
     complete_reviews,
@@ -27,6 +28,7 @@ from app.services.competition import (
     lock_event,
     validate_submission,
 )
+from app.services.judge_profile import change_name
 
 router = APIRouter(prefix="/judge", tags=["judge-portal"])
 log = logging.getLogger(__name__)
@@ -69,7 +71,28 @@ async def judge_me(
         "First_Name": judge.First_Name,
         "Last_Name": judge.Last_Name,
         "Event_ID": judge.Event_ID,
+        "Name_Confirmed_At": judge.Name_Confirmed_At,
+        "Conflict_Review_Required": judge.Conflict_Review_Required,
     }
+
+
+@router.patch("/me", response_model=JudgeProfileRead)
+async def confirm_judge_name(
+    body: JudgeNameUpdate,
+    judge: Judge = Depends(get_current_judge),
+    db: AsyncSession = Depends(get_db),
+):
+    await lock_event(db, judge.Event_ID)
+    await db.refresh(judge)
+    if not judge.Is_Active:
+        raise HTTPException(401, "Judge account disabled")
+    change_name(judge, body.First_Name, body.Last_Name)
+    judge.Name_Confirmed_At = datetime.datetime.now(datetime.timezone.utc).replace(
+        tzinfo=None
+    )
+    await db.commit()
+    await db.refresh(judge)
+    return judge
 
 
 # --- Projects ---

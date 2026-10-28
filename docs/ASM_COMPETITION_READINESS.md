@@ -20,6 +20,18 @@ Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
   each 0–5 (20 points total), with score meanings and inline judge rubric help.
 - Judge access codes, assigned-project menu, complete-rubric scoring, optional
   feedback, and saved confirmation. The judge header uses its own event metadata.
+- Judge name confirmation: existing names are prefilled after the first code
+  login, and returning confirmed judges go straight to their projects. **Edit
+  name** remains available in the header. Confirmation persists across reloads;
+  names are trimmed, required and limited to 100 characters per field. Codes are
+  personal: sharing a code shares the same identity and saved work.
+- Name corrections preserve judge IDs, codes, assignments, scores, feedback and
+  explicit conflicts. They flag the judge in Admin Judges for mentor-conflict
+  review and show the name before the pending corrections. After checking relationships in
+  Competition setup, use **Mark conflicts reviewed**. A stale displayed name
+  cannot clear a newer correction's flag. This flag prompts organizer review;
+  it does not infer conflicts or silently remove existing assignments. Organizer
+  name corrections also require the judge to confirm the corrected name.
 - Manual and automatic assignments enforce event membership, active status,
   confirmed eligibility and recorded conflicts. Distribution balances assignment
   loads, preserves existing assignments and reports shortages. This is not a
@@ -45,6 +57,12 @@ page. It does not grant a ballot. Bulk issuance deliberately leaves affiliations
 unconfirmed; confirm a non-presenter or all affiliated posters individually.
 
 ## Install the ASM rubric
+
+The `20261028_judge_profile` migration adds nullable name confirmation/previous
+name fields and a false-by-default conflict-review flag to existing judge records.
+It does not recreate identities or rotate codes. Runtime startup also applies
+these additive columns before stamping the migration head. Downgrade refuses to
+discard populated confirmation/review state.
 
 On the intended ASM database, with historical seeding disabled, run from backend:
 

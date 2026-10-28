@@ -51,6 +51,16 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
             f'"Is_Locked" BOOLEAN NOT NULL DEFAULT {default_false}',
         )
 
+    if inspector.has_table("Judge"):
+        for name, definition in (
+            ("Name_Confirmed_At", "TIMESTAMP"),
+            ("Previous_Name", "VARCHAR(201)"),
+            ("Conflict_Review_Required", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
+        ):
+            _ensure_column(
+                sync_conn, inspector, "Judge", name, f'"{name}" {definition}'
+            )
+
     # create_all does not add indexes to an existing table.
     from app.models.project import Project
 

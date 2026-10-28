@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import type { JudgeProject } from '../../types';
 
 export function JudgeProjectListPage() {
+  const { state } = useLocation();
   const [projects, setProjects] = useState<JudgeProject[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,7 @@ export function JudgeProjectListPage() {
       <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-xl">
         Projects to Score
       </h1>
+      {state?.nameConfirmed && <p role="status" className="mb-4 rounded-lg border border-green-300 bg-green-50 p-4 text-green-900">Name confirmed. Your assignments and saved reviews are ready below.</p>}
 
       {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       {assigned.length > 0 && (
