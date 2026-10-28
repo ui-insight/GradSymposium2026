@@ -21,6 +21,7 @@ class Rubric(Base):
     Category: Mapped[str] = mapped_column(sa.String(20), nullable=False)
     Max_Score: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     Description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    Score_Labels: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     Is_Locked: Mapped[bool] = mapped_column(
         sa.Boolean, default=False, server_default=sa.false()
     )

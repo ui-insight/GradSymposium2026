@@ -70,6 +70,7 @@ export interface Criterion {
 }
 
 export interface Rubric {
+  Score_Labels: Record<string, string> | null;
   Is_Locked: boolean;
   Rubric_ID: string;
   Event_ID: string;

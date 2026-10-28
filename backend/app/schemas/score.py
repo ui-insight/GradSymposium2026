@@ -9,7 +9,7 @@ class ScoreEntry(BaseModel):
     """A single criterion score within a submission."""
 
     Criterion_ID: int = Field(strict=True, ge=1)
-    Score_Value: int = Field(strict=True, ge=0, le=3)
+    Score_Value: int = Field(strict=True, ge=0, le=5)
 
 
 class ScoreSubmission(BaseModel):
@@ -31,7 +31,7 @@ class ScoreRead(BaseModel):
 
 
 class ScoreOverrideUpdate(BaseModel):
-    Score_Value: int = Field(strict=True, ge=0, le=3)
+    Score_Value: int = Field(strict=True, ge=0, le=5)
 
 
 class ScoreOverrideRead(BaseModel):

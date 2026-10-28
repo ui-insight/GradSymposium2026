@@ -52,7 +52,7 @@ export function JudgeShell() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <div className="rounded-[2rem] border border-white/60 bg-white/70 p-4 shadow-sm backdrop-blur sm:p-5">
+        <div className="rounded-[2rem] border border-white/60 bg-white/70 p-4 shadow-sm sm:p-5">
           {event?.Is_Rehearsal && <p className="mb-4 border border-amber-300 bg-amber-50 p-4 text-sm">Synthetic rehearsal only. Fictional presentations and example rules.</p>}
           <Outlet />
         </div>

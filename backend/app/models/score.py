@@ -35,7 +35,9 @@ class Score(Base):
 
     judge: Mapped["Judge"] = relationship("Judge", back_populates="scores")  # noqa: F821
     project: Mapped["Project"] = relationship("Project", back_populates="scores")  # noqa: F821
-    criterion: Mapped["RubricCriterion"] = relationship("RubricCriterion", lazy="selectin")  # noqa: F821
+    criterion: Mapped["RubricCriterion"] = relationship(  # noqa: F821
+        "RubricCriterion", lazy="selectin"
+    )
 
     __table_args__ = (
         sa.UniqueConstraint(
@@ -45,6 +47,6 @@ class Score(Base):
             name="uq_score_per_judge_project_criterion",
         ),
         sa.CheckConstraint(
-            "\"Score_Value\" >= 0 AND \"Score_Value\" <= 3", name="ck_score_range"
+            '"Score_Value" >= 0 AND "Score_Value" <= 5', name="ck_score_range"
         ),
     )

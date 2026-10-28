@@ -26,8 +26,8 @@ synthetic demo database remains separate. Four rows across two duplicate pairs
 and 11 talk-only submissions are flagged, giving 15 rows requiring decisions.
 Three records containing possible co-presenters retain their shared display names.
 The original workbook is unchanged. Paul still needs to confirm the final roster,
-duplicate resolutions, inclusion decisions, and board layout. Rubric configuration
-and attendee voting remain later implementation work.
+duplicate resolutions, inclusion decisions, and board layout. Judging and attendee voting are implemented; see
+`docs/ASM_COMPETITION_READINESS.md` for Paul’s rubric setup and remaining decisions.
 
 The admin Projects page has searchable review filters and source row references.
 The source-review report is in `data/asm-2026/roster-review.md` with a JSON import

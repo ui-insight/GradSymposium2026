@@ -221,7 +221,7 @@ async def update_criterion(
         CriterionCreate.model_validate(merged)
     except ValueError as exc:
         raise HTTPException(
-            422, "Invalid criterion name or score range (supported range 0–3)"
+            422, "Invalid criterion name or score range (supported range 0–5)"
         ) from exc
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(criterion, key, val)

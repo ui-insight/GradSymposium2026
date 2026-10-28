@@ -14,8 +14,10 @@ editors, eligibility, conflicts, review targets, valid complete-review counting,
 ballot entitlements and exports. Real ASM judging and voting remain closed with
 rules pending. A separate synthetic event supports rehearsal. See the current
 [competition readiness and operating guide](ASM_COMPETITION_READINESS.md) for
-implemented capabilities, test coverage and limitations. Other score scales,
-session-restricted ballots, ranked vote weighting and attendee award grouping
+implemented capabilities, test coverage and limitations. Paul's four-criterion
+0–5 rubric and inline help are implemented (20 points per review); install the
+draft with the command in that guide. Session-restricted ballots, ranked vote
+weighting and attendee award grouping
 still depend on the organizer's selected rules.
 
 The sections below retain the original plan and source evidence; their initial

@@ -218,6 +218,8 @@ async def judge_project_detail(
             "Rubric_Name": rubric.Rubric_Name,
             "Category": rubric.Category,
             "Max_Score": rubric.Max_Score,
+            "Description": rubric.Description,
+            "Score_Labels": rubric.Score_Labels,
             "criteria": [
                 {
                     "Criterion_ID": c.Criterion_ID,
@@ -327,11 +329,6 @@ async def submit_scores(
 
     scored_at = datetime.datetime.utcnow()
     for entry in body.scores:
-        if entry.Score_Value < 0 or entry.Score_Value > 3:
-            raise HTTPException(
-                status_code=400, detail=f"Score must be 0-3, got {entry.Score_Value}"
-            )
-
         # Upsert: check for existing score
         existing = await db.execute(
             select(Score).where(
