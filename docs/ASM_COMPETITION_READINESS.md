@@ -61,6 +61,14 @@ Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
   Codes are random; only hashes are stored. Replacement retains the entitlement
   and its ballots, invalidating the old code and sessions. Download new codes
   before leaving the issuance page; they cannot be retrieved later.
+- Closed or expired open rounds show **Attendee choice: top 10 by votes** in
+  Admin Voting. This uses unweighted attendee vote counts, separate from rubric
+  judging. Equal counts share a vote rank, and additional posters tied across
+  position ten appear explicitly below the ten-row report. The report CSV includes
+  both sections and labels cutoff ties. **Review complete tally** retains all
+  eligible posters and the full CSV export. Zero-vote posters remain visible;
+  poster-number ordering does not break ties or select award winners. Reports
+  follow current eligibility, exclude withdrawals and preserve ballot history.
 
 One voting entitlement represents an organizer-approved registration. Staff must
 use a stable unique reference for each person; the application cannot identify a

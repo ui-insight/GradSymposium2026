@@ -1,3 +1,4 @@
+import { AttendeeChoiceReport } from '../../components/admin/AttendeeChoiceReport';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -105,7 +106,8 @@ export function VotingPage() {
   const [rounds, setRounds] = useState<VotingRound[]>([]);
   const [selected, setSelected] = useState('');
   const [draft, setDraft] = useState<VotingRound | null>(null);
-  const [summary, setSummary] = useState<VotingSummary | null>(null);
+  const [summaryData, setSummary] = useState<VotingSummary | null>(null);
+  const summary = summaryData?.Round_ID === selected ? summaryData : null;
   const [voters, setVoters] = useState<Voter[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [references, setReferences] = useState('');
@@ -541,7 +543,16 @@ export function VotingPage() {
             </div>
             {summary?.Tallies_Available ? (
               <>
-                <h3 className="mt-6 text-lg font-semibold">Vote totals</h3>
+                {summary.Top_Ten_Report && <AttendeeChoiceReport
+                  report={summary.Top_Ten_Report}
+                  busy={busy}
+                  download={() => { void run(() => downloadAdmin(
+                    `/voting/admin/rounds/${selected}/top-ten/export`,
+                    `attendee-choice-top-ten-${selected}.csv`,
+                  )); }}
+                />}
+                <details className="mt-6 border-t border-gray-300 pt-3">
+                <summary className="min-h-11 cursor-pointer py-3 text-lg font-semibold">Review complete tally ({summary.tally.length} posters)</summary>
                 <p className="mt-2 text-sm text-gray-600">
                   Includes currently active, eligible posters only. Ranked
                   choices show their rank counts without an invented weighting
@@ -551,7 +562,7 @@ export function VotingPage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr>
-                        {['Poster', 'Presenter', 'Votes', 'Rank counts'].map(
+                        {['Poster', 'Presenter', 'Title', 'Votes', 'Rank counts'].map(
                           (label) => (
                             <th
                               className="border-b border-gray-300 px-3 py-3"
@@ -571,6 +582,9 @@ export function VotingPage() {
                           </td>
                           <td className="border-b border-gray-200 px-3 py-3">
                             {item.Presenter_Display_Name}
+                          </td>
+                          <td className="border-b border-gray-200 px-3 py-3">
+                            {item.Project_Title}
                           </td>
                           <td className="border-b border-gray-200 px-3 py-3">
                             {item.Votes}
@@ -597,8 +611,9 @@ export function VotingPage() {
                     )
                   }
                 >
-                  Download vote totals
+                  Download complete vote totals
                 </button>
+                </details>
               </>
             ) : (
               <p className="mt-5 text-sm text-gray-600">

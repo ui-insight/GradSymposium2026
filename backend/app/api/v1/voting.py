@@ -3,7 +3,7 @@
 import csv
 import io
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -357,12 +357,14 @@ async def close_round(
 @router.get("/admin/rounds/{round_id}/summary")
 async def summary(
     round_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
     round_ = await db.get(VotingRound, round_id)
     if not round_:
         raise HTTPException(404, "Round not found")
+    response.headers["Cache-Control"] = "no-store"
     return await round_summary(db, round_)
 
 
@@ -405,6 +407,73 @@ async def export(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="attendee-votes.csv"'},
+    )
+
+
+@router.get("/admin/rounds/{round_id}/top-ten/export")
+async def export_top_ten(
+    round_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    round_ = await db.get(VotingRound, round_id)
+    if not round_:
+        raise HTTPException(404, "Round not found")
+    state = await round_summary(db, round_)
+    if not state["Tallies_Available"]:
+        raise HTTPException(409, "Vote totals stay private until voting closes")
+    report = state["Top_Ten_Report"]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "Round",
+            "Report section",
+            "Vote rank",
+            "Tied posters",
+            "Poster",
+            "Presenter",
+            "Title",
+            "Votes",
+            "Cutoff tie",
+            "Ordering note",
+        ]
+    )
+
+    def safe(value):
+        text = str(value)
+        return "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) else text
+
+    for section, rows in (
+        ("Top ten", report["Top_Ten"]),
+        ("Additional cutoff tie", report["Additional_Cutoff_Ties"]),
+    ):
+        for row in rows:
+            writer.writerow(
+                [
+                    safe(round_.Round_Name),
+                    section,
+                    row["Vote_Rank"],
+                    row["Tied_Count"],
+                    safe(row["Project_Number"]),
+                    safe(row["Presenter_Display_Name"]),
+                    safe(row["Project_Title"]),
+                    row["Votes"],
+                    "Yes"
+                    if report["Cutoff_Spans_Ten"]
+                    and row["Votes"] == report["Cutoff_Votes"]
+                    else "No",
+                    "Unweighted vote counts; equal counts share rank. "
+                    "Poster-number ordering does not break ties or select winners.",
+                ]
+            )
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="attendee-choice-top-ten.csv"',
+            "Cache-Control": "no-store",
+        },
     )
 
 

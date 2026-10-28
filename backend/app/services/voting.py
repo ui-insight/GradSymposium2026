@@ -17,6 +17,7 @@ from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.project import Project
 from app.models.voting_round import VotingRound
+from app.services.attendee_report import attendee_choice_report
 
 UTC = datetime.timezone.utc
 _attempts: OrderedDict[str, deque] = OrderedDict()
@@ -222,5 +223,6 @@ async def round_summary(db, round_):
         "Voting_Open": voting_open(round_),
         "Tallies_Available": bool(can_tally),
         "tally": tally,
+        "Top_Ten_Report": attendee_choice_report(tally) if can_tally else None,
         "missing": await round_missing(db, round_) if round_.Status == "draft" else [],
     }
