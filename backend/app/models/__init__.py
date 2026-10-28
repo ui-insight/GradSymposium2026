@@ -11,6 +11,7 @@ from app.models.judge_conflict import JudgeConflict  # noqa: F401
 from app.models.mentor_review import MentorReview  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.project_number_reservation import ProjectNumberReservation  # noqa: F401
+from app.models.roster_review import RosterDecision, RosterSignoff  # noqa: F401
 from app.models.rubric import Rubric  # noqa: F401
 from app.models.rubric_criterion import RubricCriterion  # noqa: F401
 from app.models.score import Score  # noqa: F401

@@ -70,6 +70,15 @@ unconfirmed; confirm a non-presenter or all affiliated posters individually.
 
 ## Upload judges and review mentors
 
+Complete **Final roster review** before distributing real assignments. It records
+explicit inclusion decisions, duplicate supersession provenance and the organizer's
+exact-roster sign-off separately from competition eligibility. Review and upload
+final changes, compare the accepted-only directory, and download the count/sign-off
+report for the private operating guide. Names, mentor details or roster changes
+may require mentor re-review; withdrawn and unresolved rows remain excluded from
+assignments. The actual final ASM list and sign-off are still pending organizer
+input. See `ASM_POSTER_LOOKUP.md` for the full workflow and publication gate.
+
 Open **Mentor conflicts** in Administration and select the intended event. An
 organizer works at a desk reviewing private roster information, so this workspace
 uses a readable light layout and keeps full mentor and presenter names visible.
@@ -116,6 +125,12 @@ The `20261028_mentor_review` migration creates `Mentor_Review` for organizer
 decisions, reviewer identity, time and the source context. Existing conflict and
 assignment enforcement is reused. Downgrade refuses to discard saved decisions.
 Runtime `create_all` also creates the new table on existing installations.
+
+The `20261028_final_roster` migration creates append-only `Roster_Decision` and
+`Roster_Signoff` tables. It preserves existing presentation records and numbers,
+and refuses downgrade while either table contains review evidence. Existing
+staged source events need explicit final decisions and current sign-off before
+publication; the dev draft preview is unaffected by that final-publication gate.
 
 On the intended ASM database, with historical seeding disabled, run from backend:
 

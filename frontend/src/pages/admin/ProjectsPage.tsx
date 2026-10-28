@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
 import { getSelectedEvent } from '../../api/event';
 import type { Project, Event, CSVImportResult, PublicPosterDirectory } from '../../types';
+import type { RosterWorkspace } from '../../types/rosterReview';
 
 const buttonClass = 'min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100 disabled:cursor-wait disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700';
 
 export function ProjectsPage() {
+  const [params] = useSearchParams();
+  const eventId = params.get('event_id');
+  const [finalReview, setFinalReview] = useState({ required: false, signed: false });
   const [projects, setProjects] = useState<Project[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
   const [draftPreview, setDraftPreview] = useState(false);
@@ -33,15 +37,21 @@ export function ProjectsPage() {
 
   const loadData = useCallback(async () => {
     const [ev, directory] = await Promise.all([
-      getSelectedEvent(),
+      getSelectedEvent(eventId),
       apiFetch<PublicPosterDirectory>('/public/posters'),
     ]);
     setDraftPreview(directory.is_draft_preview && Boolean(ev?.Is_Active));
     setEvent(ev);
-    setProjects(ev ? await apiFetch<Project[]>(`/projects/?event_id=${ev.Event_ID}`) : []);
-  }, []);
+    const [nextProjects, review] = ev ? await Promise.all([
+      apiFetch<Project[]>(`/projects/?event_id=${ev.Event_ID}`),
+      apiFetch<RosterWorkspace>(`/roster-review/${ev.Event_ID}`),
+    ]) : [[], null];
+    setProjects(nextProjects);
+    setFinalReview({ required: review?.Final_Review_Required || false, signed: review?.Signoff?.Current || false });
+  }, [eventId]);
 
   useEffect(() => {
+    setLoading(true);
     loadData().catch(err => setError(err.message)).finally(() => setLoading(false));
   }, [loadData]);
 
@@ -117,7 +127,7 @@ export function ProjectsPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-bold text-gray-900">Projects</h1><p className="mt-1 text-sm text-gray-600">{event?.Event_Name || 'No active event'}</p></div>
-        <Link to="/posters" className={buttonClass}>View public lookup</Link>
+        <div className="flex flex-wrap gap-3"><Link to={`/admin/roster-review${event ? `?event_id=${event.Event_ID}` : ''}`} className={buttonClass}>Final roster review and sign-off</Link><Link to="/posters" className={buttonClass}>View public lookup</Link></div>
       </div>
       {error && <div role="alert" className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{error}</div>}
       {message && <p role="status" className="mb-4 rounded-lg border border-gray-300 p-4">{message}</p>}
@@ -126,12 +136,13 @@ export function ProjectsPage() {
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-[65ch]">
             <h2 id="publication-heading" className="text-lg font-semibold">Public poster directory</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-700">{draftPreview ? 'Dev preview open. All active draft posters are publicly visible for testing; final publication has not been confirmed.' : event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{draftPreview ? 'Dev preview open. All active draft posters are publicly visible for testing; final publication has not been confirmed.' : finalReview.required && !finalReview.signed ? 'Final roster sign-off is pending or outdated. The final published directory is hidden until a current sign-off is recorded.' : event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
             <p className="mt-1 text-sm leading-6 text-gray-600">{draftPreview ? 'Corrections appear in the dev preview immediately. Resolve the source review flags before final publication.' : 'Imports and corrections stay in draft until you publish.'} Issued numbers remain fixed, including after withdrawal.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button disabled={busy || activePosters.length === 0 || reviewRequired > 0} onClick={() => setConfirm('publish')} className={`${buttonClass} bg-green-600`}>Publish active posters</button>
+              <button disabled={busy || activePosters.length === 0 || reviewRequired > 0 || (finalReview.required && !finalReview.signed)} onClick={() => setConfirm('publish')} className={`${buttonClass} bg-green-600`}>Publish active posters</button>
               {!draftPreview && event.Public_Poster_Lookup_Enabled && <button disabled={busy} onClick={() => setConfirm('hide')} className={buttonClass}>Hide directory</button>}
             </div>
+            {finalReview.required && !finalReview.signed && <p className="mt-3 text-sm font-semibold">A current final roster sign-off is required before publication. Use Final roster review above.</p>}
           </div>
           <div className="text-center">
             <QRCodeSVG value={directoryURL} size={88} title="Public poster lookup QR code" />
@@ -224,7 +235,7 @@ export function ProjectsPage() {
               <td className="min-w-64 px-4 py-4 align-top"><p className="font-semibold">{project.Presenter_Display_Name || `${project.Presenter_First_Name} ${project.Presenter_Last_Name}`}</p><p className="mt-1 max-w-lg leading-6 text-gray-600">{project.Project_Title}</p></td>
               <td className="px-4 py-4 align-top">{project.Institution || project.Department || '—'}</td>
               <td className="px-4 py-4 align-top">{project.Table_Number || 'Unassigned'}</td>
-              <td className="px-4 py-4 align-top">{!project.Is_Active ? 'Withdrawn' : project.Roster_Review_Required ? 'Draft: needs review' : project.Category !== 'Poster' ? 'Art' : project.Is_Published && event?.Public_Poster_Lookup_Enabled ? 'Published' : 'Draft'}</td>
+              <td className="px-4 py-4 align-top">{!project.Is_Active ? 'Withdrawn' : project.Roster_Review_Required ? 'Draft: needs review' : project.Category !== 'Poster' ? 'Art' : project.Is_Published && event?.Public_Poster_Lookup_Enabled && (!finalReview.required || finalReview.signed) ? 'Published' : 'Draft'}</td>
               <td className="min-w-56 px-4 py-4 align-top text-xs leading-5">{project.Roster_Review ? <>
                 <p className="font-semibold">Source row {project.Roster_Review.source_row}</p>
                 <p>{project.Roster_Review.current_position}</p>

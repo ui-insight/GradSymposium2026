@@ -11,6 +11,7 @@ from app.config import settings
 from app.models.event import Event
 from app.models.project import Project
 from app.schemas.public_poster import PublicEvent, PublicPoster, PublicPosterDirectory
+from app.services.roster_review import final_roster_ready
 
 router = APIRouter(prefix="/public", tags=["public posters"])
 
@@ -26,6 +27,8 @@ async def poster_directory(response: Response, db: AsyncSession = Depends(get_db
     ):
         return PublicPosterDirectory()
     event = events[0]
+    if not draft_preview and not await final_roster_ready(db, event.Event_ID):
+        return PublicPosterDirectory()
     statement = select(Project).where(
         Project.Event_ID == event.Event_ID,
         Project.Category == "Poster",

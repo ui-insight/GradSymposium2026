@@ -580,8 +580,9 @@ async def test_organizer_can_resolve_source_review_without_publishing(context):
         await db.commit()
     assert repeated["records"][0]["review"]["approved_by"] == "test-admin"
     assert not repeated["records"][0]["review_required"]
-    assert (await publish(client)).status_code == 200
-    assert len((await directory(client))["posters"]) == 3
+    # Source flag approval is not a final roster sign-off.
+    assert (await publish(client)).status_code == 409
+    assert (await directory(client))["posters"] == []
     assert "approved_by" not in str(await directory(client))
 
 
