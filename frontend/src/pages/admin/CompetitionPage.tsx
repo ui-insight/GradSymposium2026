@@ -264,7 +264,7 @@ export function CompetitionPage() {
         <p className="mt-2 max-w-[70ch] text-sm leading-6 text-gray-600">
           Leave choices pending until confirmed. Rubric criteria and rules
           freeze after the first score. The current scoring system supports
-          integer criterion scores within 0–3.
+          integer criterion scores within each rubric’s range (up to 0–5).
         </p>
         <fieldset
           disabled={busy || state.settings.Judging_Open}

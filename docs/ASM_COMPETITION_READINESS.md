@@ -1,6 +1,6 @@
 # ASM competition readiness
 
-Updated October 27, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
+Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
 
 ## Ready to review
 
@@ -13,9 +13,11 @@ Updated October 27, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
   coverage. Links preserve the selected event throughout administration.
 - Admin Projects: separate judging and voting eligibility and award-group
   membership, source flags, inclusion approval, corrections and withdrawal.
-- Admin Rubrics: empty ASM draft, editable criteria and descriptions, derived
-  maximum score, confirmation lock. Supported scores are integers within 0–3;
-  a different scale still requires coordinated implementation.
+- Admin Rubrics: editable criteria and descriptions, derived maximum score,
+  confirmation lock, and integer scores within 0–5. Each criterion retains its
+  own limits; historical GPSA and synthetic 0–3 rubrics keep their original scale.
+  Paul’s ASM rubric has Research question, Methods, Results and Presentation,
+  each 0–5 (20 points total), with score meanings and inline judge rubric help.
 - Judge access codes, assigned-project menu, complete-rubric scoring, optional
   feedback, and saved confirmation. The judge header uses its own event metadata.
 - Manual and automatic assignments enforce event membership, active status,
@@ -41,6 +43,34 @@ use a stable unique reference for each person; the application cannot identify a
 person issued two different references. A public QR code only opens the entry
 page. It does not grant a ballot. Bulk issuance deliberately leaves affiliations
 unconfirmed; confirm a non-presenter or all affiliated posters individually.
+
+## Install the ASM rubric
+
+On the intended ASM database, with historical seeding disabled, run from backend:
+
+```bash
+GPSA_SEED_HISTORICAL_EVENT=false .venv/bin/alembic upgrade head
+GPSA_SEED_HISTORICAL_EVENT=false .venv/bin/python -m app.commands.configure_asm_rubric
+```
+
+Use the deployment’s Python/Alembic executables inside a backend container.
+The schema migration widens the database score envelope and adds per-rubric
+score meanings. It does not change existing criteria, score rows or overrides.
+SQLite rebuilds the Score table while preserving IDs and audit references;
+run the migration before startup if an external connection enables SQLite
+foreign keys. The normal Alembic SQLite connection leaves foreign keys off
+during this rebuild. PostgreSQL replaces the constraint in place.
+
+The command targets the named October 31 ASM event, fills an empty unlocked
+draft, and preserves criterion IDs on repeat runs. It refuses to overwrite a
+different nonempty, locked or scored rubric. An identical rubric remains
+unchanged even after scoring starts. It never activates the event, publishes
+posters, confirms remaining competition rules or opens judging. Review the
+rubric in admin and confirm/lock it as part of final competition setup.
+
+Downgrading refuses to discard five-point criteria, scores, override history or
+configured scale meanings. Back up the database before deployment. Rehearse with
+synthetic records in an isolated database; do not score real ASM posters for QA.
 
 ## Safe rehearsal
 
@@ -87,7 +117,7 @@ another synthetic voter code and invalidates prior synthetic sessions.
 - Final accepted roster and count; duplicate versions (source rows 6/9 and
   92/109); inclusion of talk-only applicants; late changes; board locations and
   the two session assignments. Existing numbers remain reserved after withdrawal.
-- Approved rubric, scale and score descriptions; judges and supplied conflicts;
+- Judges and supplied conflicts; confirmation/locking of Paul’s configured rubric;
   minimum reviews; whether assignments restrict scoring; eligibility and awards;
   aggregation, ties, release procedure and operational owner.
 - Voter eligibility and unique registration roster/distribution policy; choices,

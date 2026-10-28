@@ -41,6 +41,9 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
 
     if inspector.has_table("Rubric"):
         _ensure_column(
+            sync_conn, inspector, "Rubric", "Score_Labels", '"Score_Labels" JSON'
+        )
+        _ensure_column(
             sync_conn,
             inspector,
             "Rubric",
@@ -69,6 +72,10 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
         column_name="Is_Active",
         column_sql=f'"Is_Active" BOOLEAN NOT NULL DEFAULT {default_true}',
     )
+
+    from app.db.score_scale import ensure_score_range
+
+    ensure_score_range(sync_conn)
 
 
 def _ensure_column(

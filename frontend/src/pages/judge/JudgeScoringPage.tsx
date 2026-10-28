@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import type { JudgeProjectDetail, Criterion } from '../../types';
+import { RubricHelp } from '../../components/judge/RubricHelp';
 
 const SCORE_COLORS = [
   'bg-red-100 text-red-700 border-red-300',
@@ -151,6 +152,7 @@ export function JudgeScoringPage() {
       )}
 
       {!detail.can_score && <p role="status" className="mb-4 border border-amber-300 bg-amber-50 p-4 text-sm leading-6">{detail.Judging_Message}</p>}
+      {detail.rubric && <RubricHelp rubric={detail.rubric} />}
       {/* Scoring form */}
       {Object.entries(groups).map(([groupName, groupCriteria]) => (
         <div key={groupName} className="mb-4">
@@ -169,23 +171,25 @@ export function JudgeScoringPage() {
                   {c.Criterion_Name}
                 </p>
                 {c.Description && <p className="mb-3 text-sm leading-6 text-gray-600">{c.Description}</p>}
-                <div className="grid grid-cols-4 gap-2.5 sm:gap-2">
+                <div role="group" aria-label={c.Criterion_Name} className={`grid gap-2.5 sm:gap-2 ${c.Max_Score - c.Min_Score + 1 > 4 ? 'grid-cols-3 sm:grid-cols-6' : 'grid-cols-4'}`}>
                   {Array.from({ length: c.Max_Score - c.Min_Score + 1 }, (_, i) => c.Min_Score + i).map(val => (
                     <button
                       key={val}
                       onClick={() => setScore(c.Criterion_ID, val)}
                       disabled={!detail.can_score || submitting}
-                      className={`min-h-20 rounded-lg border-2 px-1 py-3 text-base font-medium transition-all sm:min-h-16 sm:text-sm ${
+                      aria-pressed={scores[c.Criterion_ID] === val}
+                      aria-label={`${c.Criterion_Name}: ${val} points${detail.rubric?.Score_Labels?.[val] ? `, ${detail.rubric.Score_Labels[val]}` : ''}`}
+                      className={`min-h-20 rounded-lg border-2 px-1 py-3 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700 disabled:opacity-60 sm:min-h-16 sm:text-sm ${
                         scores[c.Criterion_ID] === val
-                          ? SCORE_SELECTED[val]
-                          : SCORE_COLORS[val]
+                          ? c.Max_Score <= 3 ? SCORE_SELECTED[val] : 'border-amber-700 bg-amber-100 text-amber-950'
+                          : c.Max_Score <= 3 ? SCORE_COLORS[val] : 'border-gray-300 bg-stone-50 text-gray-800 hover:border-amber-700'
                       }`}
                     >
                       <div className="text-2xl font-bold leading-none sm:text-lg">
                         {val}
                       </div>
                       <div className="mt-1 text-xs opacity-75 sm:text-[10px]">
-                        points
+                        {detail.rubric?.Score_Labels?.[val] || 'points'}
                       </div>
                     </button>
                   ))}
@@ -198,10 +202,11 @@ export function JudgeScoringPage() {
 
       {/* Optional feedback */}
       <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-        <label className="mb-2 block text-base font-medium text-gray-700 sm:text-sm">
+        <label htmlFor="presenter-feedback" className="mb-2 block text-base font-medium text-gray-700 sm:text-sm">
           Feedback for Presenter <span className="text-gray-400 font-normal">(optional)</span>
         </label>
         <textarea
+          id="presenter-feedback"
           disabled={!detail.can_score || submitting}
           maxLength={10000}
           value={feedback}

@@ -137,7 +137,7 @@ export function RubricsPage() {
           required
           type="number"
           min={0}
-          max={2}
+          max={4}
           className={fieldClass}
           value={draft.Min_Score}
           onChange={(e) =>
@@ -151,7 +151,7 @@ export function RubricsPage() {
           required
           type="number"
           min={1}
-          max={3}
+          max={5}
           className={fieldClass}
           value={draft.Max_Score}
           onChange={(e) =>
@@ -184,8 +184,8 @@ export function RubricsPage() {
       <p className="mt-3 max-w-[70ch] text-sm leading-6">
         Add the organizer’s approved criteria, then confirm and lock the rubric
         before opening judging. A rubric with scores cannot be changed. The
-        current supported scale is within 0–3; a different scale still needs
-        implementation after confirmation.
+        supported scores are integers within 0–5. Each criterion keeps its own
+        minimum and maximum; existing 0–3 rubrics keep their original limits.
       </p>
       {error && (
         <p
@@ -237,6 +237,12 @@ export function RubricsPage() {
                 : 'Confirm and lock rubric'}
             </button>
           </div>
+          {rubric.Description && <p className="mt-4 text-sm leading-6">{rubric.Description}</p>}
+          {rubric.Score_Labels && (
+            <p className="mt-3 text-sm leading-6">
+              {Object.entries(rubric.Score_Labels).map(([score, label]) => `${score} ${label}`).join(' · ')}
+            </p>
+          )}
           {rubric.criteria.map((criterion) => (
             <form
               key={criterion.Criterion_ID}
