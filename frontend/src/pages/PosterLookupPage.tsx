@@ -1,3 +1,4 @@
+import { PosterLocation } from '../components/PosterLocation';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { conferenceDates, fetchPosterDirectory } from '../api/publicPosters';
@@ -104,7 +105,7 @@ export function PosterLookupPage() {
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-wider text-[oklch(0.42_0.04_85)]">{directory.is_draft_preview ? 'Candidate number' : 'Poster number'}</span>
                     <p className="mt-1 font-mono text-3xl font-bold">{poster.Project_Number}</p>
-                    <p className="mt-2 text-sm text-[oklch(0.42_0.015_85)]">{poster.Table_Number ? `Board / table: ${poster.Table_Number}` : 'Location to be assigned'}</p>
+                    <PosterLocation poster={poster} />
                   </div>
                   <div className="min-w-0 break-words">
                     <h2 className="text-xl font-semibold leading-7">{poster.Presenter_Display_Name}</h2>

@@ -1,3 +1,4 @@
+import type { PosterLocationFields } from '../components/PosterLocation';
 export interface Event {
   Event_ID: string;
   Event_Name: string;
@@ -170,7 +171,7 @@ export interface EventSummary {
   Art_Count: number;
 }
 
-export interface JudgeProject {
+export interface JudgeProject extends PosterLocationFields {
   can_score: boolean;
   Project_ID: string;
   Project_Number: string;
@@ -185,7 +186,7 @@ export interface JudgeProject {
   is_scored: boolean;
 }
 
-export interface JudgeProjectDetail {
+export interface JudgeProjectDetail extends PosterLocationFields {
   can_score: boolean;
   Judging_Message: string | null;
   Event_Name: string;
@@ -239,7 +240,7 @@ export interface PublicEvent {
   Location: string | null;
 }
 
-export interface PublicPoster {
+export interface PublicPoster extends PosterLocationFields {
   Project_Number: string;
   Project_Title: string;
   Presenter_Display_Name: string;

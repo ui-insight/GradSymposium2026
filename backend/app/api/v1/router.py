@@ -9,6 +9,7 @@ from app.api.v1.events import router as events_router
 from app.api.v1.judge_portal import router as judge_router
 from app.api.v1.judges import router as judges_router
 from app.api.v1.mentor_review import router as mentor_review_router
+from app.api.v1.poster_sessions import router as poster_sessions_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.public_posters import router as public_posters_router
 from app.api.v1.results import router as results_router
@@ -26,6 +27,7 @@ api_router.include_router(public_posters_router)
 api_router.include_router(judges_router)
 api_router.include_router(mentor_review_router)
 api_router.include_router(roster_review_router)
+api_router.include_router(poster_sessions_router)
 api_router.include_router(rubrics_router)
 api_router.include_router(scores_router)
 api_router.include_router(results_router)

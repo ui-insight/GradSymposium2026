@@ -289,5 +289,13 @@ async def reconciliation_report(
         content += (
             f"- {p['Project_Number']}: {p['Presenter_Display_Name']}, "
             f"{p['Project_Title']}\n"
+            + (
+                f"  Board {p['Board_Label']}; "
+                f"{p['Poster_Session'] or 'Session to be confirmed'}"
+                + (f"; {p['Poster_Session_Time']}" if p["Poster_Session_Time"] else "")
+                + "\n"
+                if p["Board_Label"]
+                else ""
+            )
         )
     return {"filename": "final-roster-review.md", "content": content}

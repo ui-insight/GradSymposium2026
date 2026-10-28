@@ -14,6 +14,7 @@ from app.models.project import Project
 from app.models.roster_review import RosterDecision, RosterSignoff
 from app.models.score import Score
 from app.schemas.public_poster import PublicEvent, PublicPoster
+from app.services.poster_sessions import convention, event_convention, poster_location
 from app.services.project_changes import withdraw_project
 
 SOURCE_FIELDS = (
@@ -172,7 +173,7 @@ async def load_roster(db, event_id):
     return event, projects, history, latest, signoff
 
 
-def reconcile(event, projects, latest):
+def reconcile(event, projects, latest, session=None):
     states = {p.Project_ID: acceptance(p, latest.get(p.Project_ID)) for p in projects}
     counts = {
         "Total": len(projects),
@@ -269,6 +270,8 @@ def reconcile(event, projects, latest):
             ],
         ]
     )
+    if session is not None:
+        context = digest([context, convention(session)])
     return counts, list(sources.values()), blockers, context, states
 
 
@@ -281,13 +284,17 @@ async def final_roster_ready(db, event_id):
     )
     if not required:
         return True  # Existing unrelated events retain their publication workflow.
-    _, _, blockers, context, _ = reconcile(event, projects, latest)
+    _, _, blockers, context, _ = reconcile(
+        event, projects, latest, await event_convention(db, event_id)
+    )
     return bool(signoff and signoff.Context == context and not blockers)
 
 
 async def workspace(db, event_id):
     event, projects, history, latest, signoff = await load_roster(db, event_id)
-    counts, sources, blockers, context, states = reconcile(event, projects, latest)
+    counts, sources, blockers, context, states = reconcile(
+        event, projects, latest, await event_convention(db, event_id)
+    )
     assigned = dict(
         (
             await db.execute(
@@ -348,6 +355,7 @@ async def workspace(db, event_id):
                 ],
             }
         )
+    session = await event_convention(db, event_id)
     accepted = [
         p for p in projects if states[p.Project_ID][0] == "accepted" and p.Is_Active
     ]
@@ -381,6 +389,7 @@ async def workspace(db, event_id):
                     Presenter_Display_Name=presenter(p),
                     Institution=p.Institution,
                     Table_Number=p.Table_Number,
+                    **poster_location(p, session),
                 ).model_dump()
                 for p in accepted
             ],

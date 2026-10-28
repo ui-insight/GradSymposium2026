@@ -11,6 +11,7 @@ from app.config import settings
 from app.models.event import Event
 from app.models.project import Project
 from app.schemas.public_poster import PublicEvent, PublicPoster, PublicPosterDirectory
+from app.services.poster_sessions import event_convention, poster_location
 from app.services.roster_review import final_roster_ready
 
 router = APIRouter(prefix="/public", tags=["public posters"])
@@ -40,6 +41,7 @@ async def poster_directory(response: Response, db: AsyncSession = Depends(get_db
             Project.Roster_Review_Required.is_(False),
         )
     projects = await db.scalars(statement)
+    session = await event_convention(db, event.Event_ID)
 
     def number_key(project):
         return tuple(
@@ -60,6 +62,7 @@ async def poster_directory(response: Response, db: AsyncSession = Depends(get_db
                 ).strip(),
                 Institution=project.Institution,
                 Table_Number=project.Table_Number,
+                **poster_location(project, session),
             )
             for project in sorted(projects, key=number_key)
         ],

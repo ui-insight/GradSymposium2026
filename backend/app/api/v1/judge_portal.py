@@ -29,6 +29,7 @@ from app.services.competition import (
     validate_submission,
 )
 from app.services.judge_profile import change_name
+from app.services.poster_sessions import event_convention, poster_location
 
 router = APIRouter(prefix="/judge", tags=["judge-portal"])
 log = logging.getLogger(__name__)
@@ -137,6 +138,7 @@ async def judge_projects(
             select(Rubric).where(Rubric.Event_ID == judge.Event_ID)
         )
     }
+    session = await event_convention(db, judge.Event_ID)
     result = []
     for p in projects:
         result.append(
@@ -150,6 +152,7 @@ async def judge_projects(
                 "Department": p.Department,
                 "Category": p.Category,
                 "Table_Number": p.Table_Number,
+                **poster_location(p, session),
                 "is_assigned": p.Project_ID in assigned_ids,
                 "is_scored": p.Project_ID in scored_ids,
                 "can_score": event_open
@@ -305,6 +308,7 @@ async def judge_project_detail(
             "or conflicts need organizer review."
         ),
         "Table_Number": project.Table_Number,
+        **poster_location(project, await event_convention(db, judge.Event_ID)),
         "rubric": rubric_data,
         "existing_scores": existing_scores,
         "existing_feedback": existing_feedback.Feedback_Text

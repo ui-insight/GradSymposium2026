@@ -279,3 +279,33 @@ existing schema upgrades.
 
 From `frontend/`, run `npm run build` and `npm run lint`. Browser rehearsal uses
 synthetic posters in an isolated local database, never the unconfirmed roster.
+
+## Board and session convention (#12)
+
+Open **Boards and sessions** (`/admin/poster-sessions`) for the selected event.
+The session mapping starts unconfigured. Board labels always follow valid issued
+poster numbers. No odd/even mapping or times are seeded;
+Paul must confirm which parity belongs to Session I and Session II and supply
+both complete date/time/time-zone labels. These are display labels, not judging
+schedules, eligibility rules or voting pools.
+
+Preview the proposal before applying it. Board labels use the exact permanent
+presentation number (`P-001`, `P-108`); sessions use the positive ASCII numeric
+suffix's parity. Manual board/table locations remain separate and appear as
+additional location details. Withdrawn numbers stay reserved and are omitted
+from the printable setup list. Late additions automatically follow the confirmed
+convention without moving any existing presentation.
+
+Unexpected number formats are flagged in the private preview and receive no
+guessed board/session. Applying a convention with flagged active records requires
+explicit acknowledgement that they remain unassigned for organizer follow-up.
+A changed roster or convention requires a new preview. Apply also requires a
+completed final roster review, an organizer confirmation reference, and explicit
+confirmation of the parity, both time labels and preview.
+
+Public lookup, judge project list/detail, accepted-directory preview and the
+operating report share the same derived board/session fields. Applying a changed
+convention invalidates the exact-directory signoff; review and sign off the new
+preview before republishing. Public allowlisting and unpublished-roster protection
+remain in force. Draft setup printouts retain a draft label. The real ASM mapping
+remains unconfigured until Paul's confirmation.
