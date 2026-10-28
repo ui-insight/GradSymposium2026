@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { conferenceDates, fetchPosterDirectory } from '../api/publicPosters';
+import { conferenceDates, fetchPublicEvent } from '../api/publicPosters';
 import type { PublicEvent } from '../types';
 
 export function LandingPage() {
   const [event, setEvent] = useState<PublicEvent | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    fetchPosterDirectory(controller.signal).then(data => setEvent(data.event)).catch(() => {});
+    fetchPublicEvent(controller.signal).then(setEvent).catch(() => {});
     return () => controller.abort();
   }, []);
   return (

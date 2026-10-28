@@ -4,6 +4,10 @@ Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
 
 ## Ready to review
 
+- Landing-page conference details come from `/api/v1/public/event`, independently
+  of roster publication. This allowlisted response contains only the active
+  conference name, dates and location. Production can show ASM branding while
+  poster records remain unpublished; draft preview is not required for branding.
 - Public draft lookup: `/posters`. The existing ASM source roster remains 108
   candidates, with 15 inclusion decisions still pending (11 talk-only rows and
   four rows in two possible duplicate pairs). Public dev preview is enabled by
