@@ -46,6 +46,9 @@ export interface Project {
 }
 
 export interface Judge {
+  Name_Confirmed_At: string | null;
+  Previous_Name: string | null;
+  Conflict_Review_Required: boolean;
   Judge_ID: string;
   Event_ID: string;
   First_Name: string;
@@ -56,6 +59,15 @@ export interface Judge {
   Is_Active: boolean;
   assignment_count: number;
   score_count: number;
+}
+
+export interface JudgeProfile {
+  Judge_ID: string;
+  Event_ID: string;
+  First_Name: string;
+  Last_Name: string;
+  Name_Confirmed_At: string | null;
+  Conflict_Review_Required: boolean;
 }
 
 export interface Criterion {

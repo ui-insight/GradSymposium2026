@@ -17,6 +17,7 @@ from app.schemas.judge import (
 )
 from app.services.access_code import generate_access_code
 from app.services.competition import complete_reviews, lock_event
+from app.services.judge_profile import change_name
 
 router = APIRouter(prefix="/judges", tags=["judges"])
 
@@ -34,6 +35,9 @@ def _judge_to_read(judge: Judge) -> JudgeRead:
         Department=judge.Department,
         Access_Code=judge.Access_Code,
         Is_Active=judge.Is_Active,
+        Name_Confirmed_At=judge.Name_Confirmed_At,
+        Previous_Name=judge.Previous_Name,
+        Conflict_Review_Required=judge.Conflict_Review_Required,
         assignment_count=len(assigned_projects),
         score_count=len(scored_projects),
     )
@@ -168,11 +172,24 @@ async def update_judge(
     if any(
         value is None
         for key, value in body.model_dump(exclude_unset=True).items()
-        if key in {"First_Name", "Last_Name", "Is_Active"}
+        if key in {"First_Name", "Last_Name", "Is_Active", "Conflict_Review_Required"}
     ):
-        raise HTTPException(422, "Name and active status cannot be null")
-    for key, val in body.model_dump(exclude_unset=True).items():
+        raise HTTPException(422, "Name, active status and review flag cannot be null")
+    updates = body.model_dump(exclude_unset=True)
+    reviewed_name = updates.pop("Reviewed_Name", None)
+    if updates.get("Conflict_Review_Required") is False and (
+        reviewed_name != f"{judge.First_Name} {judge.Last_Name}"
+    ):
+        raise HTTPException(
+            409, "Reload the judge's current name before marking conflicts reviewed"
+        )
+    first_name = updates.pop("First_Name", judge.First_Name)
+    last_name = updates.pop("Last_Name", judge.Last_Name)
+    for key, val in updates.items():
         setattr(judge, key, val)
+    change_name(judge, first_name, last_name)
+    if not judge.Conflict_Review_Required:
+        judge.Previous_Name = None
     await db.commit()
     await db.refresh(judge)
     return _judge_to_read(judge)

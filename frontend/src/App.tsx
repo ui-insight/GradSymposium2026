@@ -12,6 +12,7 @@ import { AssignmentsPage } from './pages/admin/AssignmentsPage'
 import { JudgeLoginPage } from './pages/judge/JudgeLoginPage'
 import { JudgeProjectListPage } from './pages/judge/JudgeProjectListPage'
 import { JudgeScoringPage } from './pages/judge/JudgeScoringPage'
+import { JudgeProfilePage } from './pages/judge/JudgeProfilePage'
 import { LandingPage } from './pages/LandingPage'
 import { PosterLookupPage } from './pages/PosterLookupPage'
 import { VotePage } from './pages/VotePage'
@@ -55,6 +56,7 @@ function App() {
         }
       >
         <Route path="projects" element={<JudgeProjectListPage />} />
+        <Route path="profile" element={<JudgeProfilePage />} />
         <Route path="projects/:projectId" element={<JudgeScoringPage />} />
       </Route>
 

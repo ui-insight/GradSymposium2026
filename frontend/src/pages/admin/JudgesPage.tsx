@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import { getSelectedEvent } from '../../api/event';
 import type { Judge, Event, AccessCodeCard } from '../../types';
 
 export function JudgesPage() {
+  const [params] = useSearchParams();
+  const eventId = params.get('event_id');
   const [judges, setJudges] = useState<Judge[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState('');
@@ -13,11 +16,9 @@ export function JudgesPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newJudge, setNewJudge] = useState({ First_Name: '', Last_Name: '', Email: '', Department: '' });
 
-  useEffect(() => { loadData(); }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
-      const ev = await getSelectedEvent();
+      const ev = await getSelectedEvent(eventId);
       setEvent(ev);
       if (ev) {
         const j = await apiFetch<Judge[]>(`/judges/?event_id=${ev.Event_ID}`);
@@ -25,7 +26,9 @@ export function JudgesPage() {
       }
     } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
     finally { setLoading(false); }
-  }
+  }, [eventId]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -115,7 +118,23 @@ export function JudgesPage() {
 
               return (
                 <tr key={j.Judge_ID} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{j.First_Name} {j.Last_Name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {j.First_Name} {j.Last_Name}
+                    <p className="mt-1 text-xs font-normal text-gray-600">{j.Name_Confirmed_At ? 'Name confirmed by judge' : 'Awaiting name confirmation'}</p>
+                    {j.Conflict_Review_Required && (
+                      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-normal text-amber-950">
+                        <p className="font-semibold">Name changed. Recheck mentor conflicts.</p>
+                        {j.Previous_Name && <p className="mt-1">Previously: {j.Previous_Name}</p>}
+                        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" to={`/admin/competition?event_id=${j.Event_ID}`}>Review conflicts</Link>
+                        <button className="mt-2 min-h-11 rounded-lg border border-amber-700 px-3 py-2" onClick={async () => {
+                          try {
+                            await apiFetch(`/judges/${j.Judge_ID}`, { method: 'PATCH', body: JSON.stringify({ Conflict_Review_Required: false, Reviewed_Name: `${j.First_Name} ${j.Last_Name}` }) });
+                            await loadData();
+                          } catch (err) { setError(err instanceof Error ? err.message : 'Unable to mark conflicts reviewed.'); }
+                        }}>Mark conflicts reviewed</button>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{j.Email || '—'}</td>
                   <td className="px-4 py-3 text-gray-500">{j.Department || '—'}</td>
                   <td className="px-4 py-3 font-mono font-bold text-blue-600">{j.Access_Code}</td>

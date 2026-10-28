@@ -6,6 +6,7 @@ export interface AuthState {
   user: { name: string; id: string } | null;
   login: (token: string, role: 'admin' | 'judge') => void;
   logout: () => void;
+  updateUser: (user: { name: string; id: string }) => void;
 }
 
 export const AuthContext = createContext<AuthState>({
@@ -14,4 +15,5 @@ export const AuthContext = createContext<AuthState>({
   user: null,
   login: () => {},
   logout: () => {},
+  updateUser: () => {},
 });

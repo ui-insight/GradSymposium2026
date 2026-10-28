@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { conferenceDates, fetchPosterDirectory } from '../../api/publicPosters';
-import type { PublicEvent } from '../../types';
+import type { JudgeProfile, PublicEvent } from '../../types';
 import { apiFetch } from '../../api/client';
 import { useAuth } from '../../components/auth/useAuth';
 
@@ -11,7 +11,7 @@ export function JudgeLoginPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,8 +23,12 @@ export function JudgeLoginPage() {
         method: 'POST',
         body: JSON.stringify({ access_code: code }),
       });
+      const profile = await apiFetch<JudgeProfile>('/judge/me', {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
       login(data.access_token, 'judge');
-      navigate('/judge/projects');
+      updateUser({ id: profile.Judge_ID, name: `${profile.First_Name} ${profile.Last_Name}` });
+      navigate(profile.Name_Confirmed_At ? '/judge/projects' : '/judge/profile');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid code');
     } finally {

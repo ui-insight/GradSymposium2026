@@ -1,5 +1,6 @@
 """Judge model — an event judge who scores projects."""
 
+import datetime
 import uuid
 
 import sqlalchemy as sa
@@ -21,11 +22,14 @@ class Judge(Base):
     Last_Name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     Email: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     Department: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
-    Access_Code: Mapped[str] = mapped_column(
-        sa.String(10), unique=True, nullable=False
-    )
+    Access_Code: Mapped[str] = mapped_column(sa.String(10), unique=True, nullable=False)
     Is_Active: Mapped[bool] = mapped_column(
         sa.Boolean, default=True, server_default=sa.text("true")
+    )
+    Name_Confirmed_At: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime)
+    Previous_Name: Mapped[str | None] = mapped_column(sa.String(201))
+    Conflict_Review_Required: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false(), nullable=False
     )
 
     scores: Mapped[list["Score"]] = relationship(  # noqa: F821
