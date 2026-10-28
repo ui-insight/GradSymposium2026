@@ -14,6 +14,7 @@ from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.judge_assignment import JudgeAssignment
 from app.models.judge_conflict import JudgeConflict
+from app.models.mentor_review import MentorReview
 from app.models.project import Project
 from app.models.score import Score
 from app.models.user import User
@@ -360,6 +361,9 @@ async def delete_project(
             select(JudgeConflict.Conflict_ID).where(
                 JudgeConflict.Project_ID == project_id
             )
+        )
+        or await db.scalar(
+            select(MentorReview.Review_ID).where(MentorReview.Project_ID == project_id)
         )
         or project.scores
     ):

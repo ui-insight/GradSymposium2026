@@ -8,6 +8,7 @@ from app.models.feedback import Feedback  # noqa: F401
 from app.models.judge import Judge  # noqa: F401
 from app.models.judge_assignment import JudgeAssignment  # noqa: F401
 from app.models.judge_conflict import JudgeConflict  # noqa: F401
+from app.models.mentor_review import MentorReview  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.project_number_reservation import ProjectNumberReservation  # noqa: F401
 from app.models.rubric import Rubric  # noqa: F401

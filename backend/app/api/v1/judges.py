@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin, get_db
 from app.models.judge import Judge
 from app.models.judge_conflict import JudgeConflict
+from app.models.mentor_review import MentorReview
 from app.models.user import User
 from app.schemas.judge import (
     AccessCodeCard,
@@ -15,7 +16,7 @@ from app.schemas.judge import (
     JudgeRead,
     JudgeUpdate,
 )
-from app.services.access_code import generate_access_code
+from app.services.access_code import unique_access_code as _unique_code
 from app.services.competition import complete_reviews, lock_event
 from app.services.judge_profile import change_name
 
@@ -41,15 +42,6 @@ def _judge_to_read(judge: Judge) -> JudgeRead:
         assignment_count=len(assigned_projects),
         score_count=len(scored_projects),
     )
-
-
-async def _unique_code(db: AsyncSession) -> str:
-    for _ in range(100):
-        code = generate_access_code()
-        existing = await db.execute(select(Judge).where(Judge.Access_Code == code))
-        if not existing.scalar_one_or_none():
-            return code
-    raise RuntimeError("Unable to generate unique access code")
 
 
 @router.get("/access-codes", response_model=list[AccessCodeCard])
@@ -206,8 +198,14 @@ async def delete_judge(
     if not judge:
         raise HTTPException(status_code=404, detail="Judge not found")
     await lock_event(db, judge.Event_ID)
-    if judge.scores or await db.scalar(
-        select(JudgeConflict.Conflict_ID).where(JudgeConflict.Judge_ID == judge_id)
+    if (
+        judge.scores
+        or await db.scalar(
+            select(JudgeConflict.Conflict_ID).where(JudgeConflict.Judge_ID == judge_id)
+        )
+        or await db.scalar(
+            select(MentorReview.Review_ID).where(MentorReview.Judge_ID == judge_id)
+        )
     ):
         raise HTTPException(
             409, "Deactivate this judge to preserve competition history"

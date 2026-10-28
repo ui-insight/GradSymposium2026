@@ -1,20 +1,19 @@
 """Competition readiness, rules, review coverage, and explicit judge conflicts."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
 from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.judge import Judge
-from app.models.judge_assignment import JudgeAssignment
 from app.models.judge_conflict import JudgeConflict
 from app.models.project import Project
 from app.models.score import Score
 from app.models.user import User
 from app.schemas.competition import CompetitionUpdate, ConflictCreate
-from app.services.competition import competition_status, lock_event
+from app.services.competition import competition_status, lock_event, record_conflict
 
 router = APIRouter(prefix="/competition", tags=["competition"])
 
@@ -154,22 +153,7 @@ async def create_conflict(
         raise HTTPException(422, "Judge and project must belong to this event")
     if not body.Reason.strip():
         raise HTTPException(422, "Provide the conflict reason")
-    existing = await db.scalar(
-        select(JudgeConflict).where(
-            JudgeConflict.Judge_ID == body.Judge_ID,
-            JudgeConflict.Project_ID == body.Project_ID,
-        )
-    )
-    if existing:
-        existing.Reason = body.Reason.strip()
-    else:
-        db.add(JudgeConflict(**body.model_dump()))
-    await db.execute(
-        delete(JudgeAssignment).where(
-            JudgeAssignment.Judge_ID == body.Judge_ID,
-            JudgeAssignment.Project_ID == body.Project_ID,
-        )
-    )
+    await record_conflict(db, body.Judge_ID, body.Project_ID, body.Reason)
     await db.commit()
     return {
         "status": "recorded",

@@ -3,7 +3,7 @@
 from collections import defaultdict
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings as app_settings
@@ -34,6 +34,30 @@ async def has_conflict(db: AsyncSession, judge_id: str, project_id: str) -> bool
                 JudgeConflict.Judge_ID == judge_id,
                 JudgeConflict.Project_ID == project_id,
             )
+        )
+    )
+
+
+async def record_conflict(db, judge_id, project_id, reason):
+    """Shared write path. Caller validates event membership and holds its lock."""
+    conflict = await db.scalar(
+        select(JudgeConflict).where(
+            JudgeConflict.Judge_ID == judge_id,
+            JudgeConflict.Project_ID == project_id,
+        )
+    )
+    if conflict:
+        conflict.Reason = reason.strip()
+    else:
+        db.add(
+            JudgeConflict(
+                Judge_ID=judge_id, Project_ID=project_id, Reason=reason.strip()
+            )
+        )
+    await db.execute(
+        delete(JudgeAssignment).where(
+            JudgeAssignment.Judge_ID == judge_id,
+            JudgeAssignment.Project_ID == project_id,
         )
     )
 

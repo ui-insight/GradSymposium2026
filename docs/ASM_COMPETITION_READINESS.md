@@ -28,10 +28,22 @@ Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
 - Name corrections preserve judge IDs, codes, assignments, scores, feedback and
   explicit conflicts. They flag the judge in Admin Judges for mentor-conflict
   review and show the name before the pending corrections. After checking relationships in
-  Competition setup, use **Mark conflicts reviewed**. A stale displayed name
+  **Mentor conflicts**, resolve the current eligible relationships, then use
+  **Finish review of corrected judge name**. A stale displayed name or roster
   cannot clear a newer correction's flag. This flag prompts organizer review;
   it does not infer conflicts or silently remove existing assignments. Organizer
   name corrections also require the judge to confirm the corrected name.
+- Mentor conflict review compares each judge with the full PI/lab text, presenter
+  and title. Explicit decisions are **No conflict confirmed**, **Conflict
+  recorded**, or **Needs Paul's input**, with a required source/reason. Missing
+  mentors and unmatched names stay unreviewed until an organizer supplies a
+  decision. Changes to names, PI/lab, presenter, title, institution or roster
+  eligibility make earlier review decisions stale. Recorded conflicts still
+  block assignments and scores during a recheck.
+- Admin CSV uploads preview recruited judges and mentor decisions before applying
+  any rows. Imports with errors apply nothing, and a changed roster/review state
+  requires a fresh preview. Existing identities require explicit Judge_ID values;
+  possible name/email duplicates are flagged, never merged automatically.
 - Manual and automatic assignments enforce event membership, active status,
   confirmed eligibility and recorded conflicts. Distribution balances assignment
   loads, preserves existing assignments and reports shortages. This is not a
@@ -56,6 +68,42 @@ person issued two different references. A public QR code only opens the entry
 page. It does not grant a ballot. Bulk issuance deliberately leaves affiliations
 unconfirmed; confirm a non-presenter or all affiliated posters individually.
 
+## Upload judges and review mentors
+
+Open **Mentor conflicts** in Administration and select the intended event. An
+organizer works at a desk reviewing private roster information, so this workspace
+uses a readable light layout and keeps full mentor and presenter names visible.
+
+1. Expand **Import judge roster and mentor decisions** and download the judge CSV
+   template. `First_Name` and `Last_Name` are required; `Email` and `Department`
+   are optional. Blank `Judge_ID` creates a new personal judge account. To update
+   an existing judge, copy its ID from the review page. Codes and existing work
+   are retained. Missing optional columns preserve those contact fields on an
+   explicit-ID update; empty cells in a supplied column clear the field.
+2. Preview the CSV. Correct every error before applying. A possible existing name
+   or email requires an explicit ID; a name match never establishes identity.
+   New codes are available through the existing Judges/code-card workflow.
+3. Select a judge and download that judge's decision sheet. It includes the stable
+   ID, candidate number, full presenter/PI text and a review context. Confirm
+   relationships with Paul, including co-mentors and other conflicts. Set
+   `Decision` to `conflict`, `clear` or `needs_input`; enter a short confirmation
+   source/reason/question in `Note`. Blank decisions are skipped. Keep full
+   personal source material in private operator files, not the reason field.
+4. Preview and apply reviewed decisions, or review individual relationships on
+   screen. The preview identifies assignments that will be removed and retained
+   historical scores that will be excluded. An existing conflict cannot be
+   cleared by a CSV or a “no conflict” decision; resolve it explicitly in
+   Competition setup. Changed context requires a new sheet and a fresh review.
+5. Resolve pending roster eligibility before finishing a corrected judge's name
+   review. Review current assignments and export any assignment shortages for
+   judging setup (#13). Conflicts must not be relaxed to meet the target.
+
+An unreviewed pair is not proof of no conflict. This workspace records organizer
+evidence; existing assignment/scoring rules continue to enforce explicit
+conflicts. With no recruited ASM judge list or mentor confirmations supplied yet,
+the real mapping and final organizer sign-off for #10 remain pending. No real
+mentor relationships are inferred, imported or signed off by implementation.
+
 ## Install the ASM rubric
 
 The `20261028_judge_profile` migration adds nullable name confirmation/previous
@@ -63,6 +111,11 @@ name fields and a false-by-default conflict-review flag to existing judge record
 It does not recreate identities or rotate codes. Runtime startup also applies
 these additive columns before stamping the migration head. Downgrade refuses to
 discard populated confirmation/review state.
+
+The `20261028_mentor_review` migration creates `Mentor_Review` for organizer
+decisions, reviewer identity, time and the source context. Existing conflict and
+assignment enforcement is reused. Downgrade refuses to discard saved decisions.
+Runtime `create_all` also creates the new table on existing installations.
 
 On the intended ASM database, with historical seeding disabled, run from backend:
 
