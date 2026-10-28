@@ -2,13 +2,12 @@
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin, get_db
 from app.models.judge import Judge
 from app.models.project import Project
-from app.models.score import Score
 from app.models.user import User
 from app.schemas.results import EventSummary, ProjectResult
 from app.services.excel_export import export_results_to_excel
@@ -21,10 +20,11 @@ router = APIRouter(prefix="/results", tags=["results"])
 async def get_results(
     event_id: str,
     category: str | None = None,
+    award_group: str | None = None,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    return await get_project_results(db, event_id, category)
+    return await get_project_results(db, event_id, category, award_group)
 
 
 @router.get("/summary", response_model=EventSummary)
@@ -39,11 +39,12 @@ async def get_summary(
 @router.get("/export")
 async def export_results(
     event_id: str,
+    award_group: str | None = None,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    poster_results = await get_project_results(db, event_id, "Poster")
-    art_results = await get_project_results(db, event_id, "Art")
+    poster_results = await get_project_results(db, event_id, "Poster", award_group)
+    art_results = await get_project_results(db, event_id, "Art", award_group)
     buf = export_results_to_excel(poster_results, art_results)
     return StreamingResponse(
         buf,
@@ -60,48 +61,39 @@ async def recent_activity(
     _admin: User = Depends(get_current_admin),
 ):
     """Get the most recent score submissions (unique judge-project pairs)."""
-    stmt = (
-        select(
-            Score.Judge_ID,
-            Score.Project_ID,
-            func.max(Score.Scored_At).label("last_scored"),
-            func.sum(Score.Score_Value).label("total"),
-            func.count(Score.Score_ID).label("criteria_count"),
-            Judge.First_Name.label("judge_first"),
-            Judge.Last_Name.label("judge_last"),
-            Project.Project_Number,
-            Project.Project_Title,
-            Project.Category,
+    from app.models.competition import CompetitionSettings
+    from app.services.competition import complete_reviews
+
+    rules = await db.get(CompetitionSettings, event_id)
+    projects = {
+        p.Project_ID: p
+        for p in await db.scalars(
+            select(Project).where(
+                Project.Event_ID == event_id, Project.Is_Active.is_(True)
+            )
         )
-        .join(Judge, Score.Judge_ID == Judge.Judge_ID)
-        .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(
-            Project.Event_ID == event_id,
-            Project.Is_Active.is_(True),
-            Score.Is_Active.is_(True),
-        )
-        .group_by(
-            Score.Judge_ID,
-            Score.Project_ID,
-            Judge.First_Name,
-            Judge.Last_Name,
-            Project.Project_Number,
-            Project.Project_Title,
-            Project.Category,
-        )
-        .order_by(func.max(Score.Scored_At).desc())
-        .limit(limit)
-    )
-    result = await db.execute(stmt)
-    rows = result.all()
+    }
+    judges = {
+        j.Judge_ID: j
+        for j in await db.scalars(select(Judge).where(Judge.Event_ID == event_id))
+    }
+    reviews = [
+        r
+        for r in await complete_reviews(db, event_id)
+        if r["Project_ID"] in projects
+        and (not rules or projects[r["Project_ID"]].Judging_Eligible is True)
+    ]
+    reviews.sort(key=lambda r: r["Scored_At"], reverse=True)
     return [
         {
-            "Judge_Name": f"{r.judge_first} {r.judge_last}",
-            "Project_Number": r.Project_Number,
-            "Project_Title": r.Project_Title,
-            "Category": r.Category,
-            "Total_Score": r.total,
-            "Scored_At": r.last_scored.isoformat() if r.last_scored else None,
+            "Judge_Name": (
+                f"{judges[r['Judge_ID']].First_Name} {judges[r['Judge_ID']].Last_Name}"
+            ),
+            "Project_Number": projects[r["Project_ID"]].Project_Number,
+            "Project_Title": projects[r["Project_ID"]].Project_Title,
+            "Category": projects[r["Project_ID"]].Category,
+            "Total_Score": r["Total_Score"],
+            "Scored_At": r["Scored_At"].isoformat(),
         }
-        for r in rows
+        for r in reviews[: max(1, min(limit, 100))]
     ]

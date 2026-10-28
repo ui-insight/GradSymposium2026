@@ -24,6 +24,9 @@ class Project(Base):
     Presenter_Email: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     Presenter_Display_Name: Mapped[str | None] = mapped_column(sa.String(300))
     Institution: Mapped[str | None] = mapped_column(sa.String(200))
+    Judging_Eligible: Mapped[bool | None] = mapped_column(sa.Boolean)
+    Voting_Eligible: Mapped[bool | None] = mapped_column(sa.Boolean)
+    Award_Groups: Mapped[list | None] = mapped_column(sa.JSON)
     Source_Submission_Key: Mapped[str | None] = mapped_column(sa.String(128))
     Roster_Review: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     Roster_Review_Required: Mapped[bool] = mapped_column(

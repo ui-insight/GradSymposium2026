@@ -1,88 +1,369 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
-import type { Rubric, Event } from '../../types';
+import { getSelectedEvent } from '../../api/event';
+import type { Criterion, Event, Rubric } from '../../types';
+import {
+  actionClass,
+  fieldClass,
+  sectionClass,
+} from '../../utils/competitionUi';
+
+type CriterionDraft = Pick<
+  Criterion,
+  | 'Criterion_Name'
+  | 'Criterion_Group'
+  | 'Description'
+  | 'Min_Score'
+  | 'Max_Score'
+  | 'Sort_Order'
+>;
+const blankCriterion = (): CriterionDraft => ({
+  Criterion_Name: '',
+  Criterion_Group: '',
+  Description: '',
+  Min_Score: 0,
+  Max_Score: 3,
+  Sort_Order: 0,
+});
 
 export function RubricsPage() {
+  const [params] = useSearchParams();
+  const eventId = params.get('event_id');
+  const [event, setEvent] = useState<Event | null>(null);
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
+  const [drafts, setDrafts] = useState<Record<number, CriterionDraft>>({});
+  const [newCriteria, setNewCriteria] = useState<
+    Record<string, CriterionDraft>
+  >({});
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Poster');
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => { loadData(); }, []);
-
-  async function loadData() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const load = useCallback(async () => {
+    const ev = await getSelectedEvent(eventId);
+    setEvent(ev);
+    const data = ev
+      ? await apiFetch<Rubric[]>(`/rubrics/?event_id=${ev.Event_ID}`)
+      : [];
+    setRubrics(data);
+    setDrafts(
+      Object.fromEntries(
+        data.flatMap((r) =>
+          r.criteria.map((c) => [
+            c.Criterion_ID,
+            {
+              Criterion_Name: c.Criterion_Name,
+              Criterion_Group: c.Criterion_Group,
+              Description: c.Description,
+              Min_Score: c.Min_Score,
+              Max_Score: c.Max_Score,
+              Sort_Order: c.Sort_Order,
+            },
+          ]),
+        ),
+      ),
+    );
+    setNewCriteria(
+      Object.fromEntries(
+        data.map((r) => [
+          r.Rubric_ID,
+          { ...blankCriterion(), Sort_Order: r.criteria.length },
+        ]),
+      ),
+    );
+  }, [eventId]);
+  useEffect(() => {
+    load()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [load]);
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError('');
+    setNotice('');
     try {
-      const ev = await apiFetch<Event | null>('/events/active');
-      if (ev) {
-        const r = await apiFetch<Rubric[]>(`/rubrics/?event_id=${ev.Event_ID}`);
-        setRubrics(r);
-      }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      await action();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save rubric.');
+    } finally {
+      setBusy(false);
+    }
   }
-
-  if (loading) return <div className="text-gray-500">Loading...</div>;
-
+  const fields = (
+    draft: CriterionDraft,
+    update: (draft: CriterionDraft) => void,
+    disabled: boolean,
+  ) => (
+    <fieldset disabled={disabled} className="grid gap-3 sm:grid-cols-2">
+      <label className="text-sm font-semibold">
+        Criterion name
+        <input
+          required
+          maxLength={200}
+          className={fieldClass}
+          value={draft.Criterion_Name}
+          onChange={(e) => update({ ...draft, Criterion_Name: e.target.value })}
+        />
+      </label>
+      <label className="text-sm font-semibold">
+        Section / group
+        <input
+          maxLength={100}
+          className={fieldClass}
+          value={draft.Criterion_Group || ''}
+          onChange={(e) =>
+            update({ ...draft, Criterion_Group: e.target.value || null })
+          }
+        />
+      </label>
+      <label className="text-sm font-semibold sm:col-span-2">
+        Description
+        <textarea
+          className={fieldClass}
+          rows={2}
+          value={draft.Description || ''}
+          onChange={(e) =>
+            update({ ...draft, Description: e.target.value || null })
+          }
+        />
+      </label>
+      <label className="text-sm font-semibold">
+        Minimum score
+        <input
+          required
+          type="number"
+          min={0}
+          max={2}
+          className={fieldClass}
+          value={draft.Min_Score}
+          onChange={(e) =>
+            update({ ...draft, Min_Score: Number(e.target.value) })
+          }
+        />
+      </label>
+      <label className="text-sm font-semibold">
+        Maximum score
+        <input
+          required
+          type="number"
+          min={1}
+          max={3}
+          className={fieldClass}
+          value={draft.Max_Score}
+          onChange={(e) =>
+            update({ ...draft, Max_Score: Number(e.target.value) })
+          }
+        />
+      </label>
+      <label className="text-sm font-semibold">
+        Display order
+        <input
+          required
+          type="number"
+          min={0}
+          className={fieldClass}
+          value={draft.Sort_Order}
+          onChange={(e) =>
+            update({ ...draft, Sort_Order: Number(e.target.value) })
+          }
+        />
+      </label>
+    </fieldset>
+  );
+  if (loading) return <p role="status">Loading rubrics…</p>;
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Rubrics</h1>
-
-      <div className="space-y-6">
-        {rubrics.map(rubric => {
-          // Group criteria
-          const groups: Record<string, typeof rubric.criteria> = {};
-          rubric.criteria.forEach(c => {
-            const group = c.Criterion_Group || 'General';
-            if (!groups[group]) groups[group] = [];
-            groups[group].push(c);
-          });
-
-          return (
-            <div key={rubric.Rubric_ID} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{rubric.Rubric_Name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {rubric.criteria.length} criteria — Max score: {rubric.Max_Score} pts
-                  </p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  rubric.Category === 'Art'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {rubric.Category}
-                </span>
-              </div>
-
-              <div className="p-6">
-                <div className="text-xs text-gray-400 mb-3 flex justify-end gap-6">
-                  <span>Poor (0)</span>
-                  <span>Fair (1)</span>
-                  <span>Good (2)</span>
-                  <span>Excellent (3)</span>
-                </div>
-
-                {Object.entries(groups).map(([groupName, criteria]) => (
-                  <div key={groupName} className="mb-4">
-                    {groupName !== 'General' && (
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-100 pb-1">
-                        {groupName}
-                      </h3>
-                    )}
-                    <div className="space-y-2">
-                      {criteria.map(c => (
-                        <div key={c.Criterion_ID} className="flex items-center justify-between py-1">
-                          <span className="text-sm text-gray-700">{c.Criterion_Name}</span>
-                          <span className="text-xs text-gray-400">0–{c.Max_Score}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+      <h1 className="text-2xl font-bold">Rubric setup</h1>
+      <p className="mt-2 text-sm text-gray-600">
+        {event?.Event_Name || 'No selected event'}
+      </p>
+      <p className="mt-3 max-w-[70ch] text-sm leading-6">
+        Add the organizer’s approved criteria, then confirm and lock the rubric
+        before opening judging. A rubric with scores cannot be changed. The
+        current supported scale is within 0–3; a different scale still needs
+        implementation after confirmation.
+      </p>
+      {error && (
+        <p
+          role="alert"
+          className="mt-4 border border-red-300 bg-red-50 p-4 text-red-800"
+        >
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="mt-4 border border-gray-300 p-4">
+          {notice}
+        </p>
+      )}
+      {rubrics.map((rubric) => (
+        <section key={rubric.Rubric_ID} className={`mt-5 ${sectionClass}`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold">{rubric.Rubric_Name}</h2>
+              <p className="mt-2 text-sm">
+                {rubric.Category} · {rubric.criteria.length} criteria · maximum{' '}
+                {rubric.Max_Score} points ·{' '}
+                {rubric.Is_Locked
+                  ? 'Confirmed and locked'
+                  : 'Draft, awaiting confirmation'}
+              </p>
             </div>
-          );
-        })}
-      </div>
+            <button
+              className={actionClass}
+              disabled={
+                busy || (!rubric.Is_Locked && rubric.criteria.length === 0)
+              }
+              onClick={() =>
+                run(async () => {
+                  await apiFetch(
+                    `/rubrics/${rubric.Rubric_ID}/${rubric.Is_Locked ? 'unlock' : 'lock'}`,
+                    { method: 'POST' },
+                  );
+                  setNotice(
+                    rubric.Is_Locked
+                      ? 'Unscored rubric unlocked for editing.'
+                      : 'Rubric confirmed and locked.',
+                  );
+                })
+              }
+            >
+              {rubric.Is_Locked
+                ? 'Unlock unscored rubric'
+                : 'Confirm and lock rubric'}
+            </button>
+          </div>
+          {rubric.criteria.map((criterion) => (
+            <form
+              key={criterion.Criterion_ID}
+              className="mt-5 border-t border-gray-200 py-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(async () => {
+                  await apiFetch(
+                    `/rubrics/criteria/${criterion.Criterion_ID}`,
+                    {
+                      method: 'PATCH',
+                      body: JSON.stringify(drafts[criterion.Criterion_ID]),
+                    },
+                  );
+                  setNotice('Criterion saved.');
+                });
+              }}
+            >
+              <h3 className="mb-4 font-semibold">{criterion.Criterion_Name}</h3>
+              {drafts[criterion.Criterion_ID] &&
+                fields(
+                  drafts[criterion.Criterion_ID],
+                  (value) =>
+                    setDrafts({ ...drafts, [criterion.Criterion_ID]: value }),
+                  busy || rubric.Is_Locked,
+                )}
+              {!rubric.Is_Locked && (
+                <div className="mt-4 flex gap-2">
+                  <button className={actionClass} disabled={busy}>
+                    Save criterion
+                  </button>
+                  <button
+                    type="button"
+                    className={actionClass}
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await apiFetch(
+                          `/rubrics/criteria/${criterion.Criterion_ID}`,
+                          { method: 'DELETE' },
+                        );
+                        setNotice('Unscored draft criterion removed.');
+                      })
+                    }
+                  >
+                    Remove criterion
+                  </button>
+                </div>
+              )}
+            </form>
+          ))}
+          {!rubric.Is_Locked && newCriteria[rubric.Rubric_ID] && (
+            <form
+              className="mt-5 border-t border-gray-300 py-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(async () => {
+                  await apiFetch(`/rubrics/${rubric.Rubric_ID}/criteria`, {
+                    method: 'POST',
+                    body: JSON.stringify(newCriteria[rubric.Rubric_ID]),
+                  });
+                  setNotice('Draft criterion added.');
+                });
+              }}
+            >
+              <h3 className="mb-4 font-semibold">Add a criterion</h3>
+              {fields(
+                newCriteria[rubric.Rubric_ID],
+                (value) =>
+                  setNewCriteria({ ...newCriteria, [rubric.Rubric_ID]: value }),
+                busy,
+              )}
+              <button disabled={busy} className={`${actionClass} mt-4`}>
+                Add draft criterion
+              </button>
+            </form>
+          )}
+        </section>
+      ))}
+      {event && (
+        <form
+          className={sectionClass}
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              await apiFetch('/rubrics/', {
+                method: 'POST',
+                body: JSON.stringify({
+                  Event_ID: event.Event_ID,
+                  Rubric_Name: name.trim(),
+                  Category: category,
+                }),
+              });
+              setName('');
+              setNotice('Empty draft rubric created.');
+            });
+          }}
+        >
+          <h2 className="text-xl font-semibold">Create a draft rubric</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-semibold">
+              Rubric name
+              <input
+                required
+                maxLength={100}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={fieldClass}
+              />
+            </label>
+            <label className="text-sm font-semibold">
+              Presentation category
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={fieldClass}
+              >
+                <option>Poster</option>
+                <option>Art</option>
+              </select>
+            </label>
+          </div>
+          <button disabled={busy} className={`${actionClass} mt-4`}>
+            Create draft rubric
+          </button>
+        </form>
+      )}
     </div>
   );
 }

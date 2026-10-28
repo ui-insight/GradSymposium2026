@@ -23,5 +23,6 @@ class PublicPoster(BaseModel):
 
 
 class PublicPosterDirectory(BaseModel):
+    is_draft_preview: bool = False
     event: PublicEvent | None = None
     posters: list[PublicPoster] = Field(default_factory=list)

@@ -4,3 +4,4 @@ import os
 
 os.environ["GPSA_DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["GPSA_SEED_HISTORICAL_EVENT"] = "false"
+os.environ["GPSA_PUBLIC_DRAFT_PREVIEW"] = "false"

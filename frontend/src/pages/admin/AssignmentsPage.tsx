@@ -1,38 +1,15 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../api/client';
+import { getSelectedEvent } from '../../api/event';
 import type { Judge, Project, Event, Assignment } from '../../types';
-
-function shuffleArray<T>(items: T[]) {
-  const shuffled = [...items];
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-  }
-  return shuffled;
-}
-
-function sortJudgesForDistribution(
-  candidates: Judge[],
-  judgeCounts: Map<string, number>
-) {
-  const buckets = new Map<number, Judge[]>();
-
-  for (const judge of candidates) {
-    const count = judgeCounts.get(judge.Judge_ID) || 0;
-    const bucket = buckets.get(count) || [];
-    bucket.push(judge);
-    buckets.set(count, bucket);
-  }
-
-  return [...buckets.keys()]
-    .sort((a, b) => a - b)
-    .flatMap(count => shuffleArray(buckets.get(count) || []));
-}
 
 export function AssignmentsPage() {
   const [judges, setJudges] = useState<Judge[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('Poster');
   const [judgesPerProject, setJudgesPerProject] = useState(3);
@@ -43,7 +20,7 @@ export function AssignmentsPage() {
 
   async function loadData() {
     try {
-      const ev = await apiFetch<Event | null>('/events/active');
+      const ev = await getSelectedEvent();
       setEvent(ev);
       if (ev) {
         const [j, p, a] = await Promise.all([
@@ -51,7 +28,7 @@ export function AssignmentsPage() {
           apiFetch<Project[]>(`/projects/?event_id=${ev.Event_ID}`),
           apiFetch<Assignment[]>(`/assignments/?event_id=${ev.Event_ID}`),
         ]);
-        setJudges(j);
+        setJudges(j.filter(judge => judge.Is_Active));
         setProjects(p);
         const map = new Map<string, number>();
         for (const assignment of a) {
@@ -59,7 +36,7 @@ export function AssignmentsPage() {
         }
         setAssignmentMap(map);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
     finally { setLoading(false); }
   }
 
@@ -80,7 +57,7 @@ export function AssignmentsPage() {
         });
         setAssignmentMap(prev => new Map(prev).set(key, result.Assignment_ID));
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
     finally {
       setToggling(prev => { const s = new Set(prev); s.delete(key); return s; });
     }
@@ -89,49 +66,13 @@ export function AssignmentsPage() {
   async function handleAutoAssign() {
     if (!event) return;
 
-    const targetProjects = shuffleArray(filteredProjects);
-
-    // Build current assignment counts per judge (across ALL projects, not just filtered)
-    const judgeCounts = new Map<string, number>();
-    judges.forEach(j => judgeCounts.set(j.Judge_ID, 0));
-    for (const key of assignmentMap.keys()) {
-      const judgeId = key.split(':')[0];
-      judgeCounts.set(judgeId, (judgeCounts.get(judgeId) || 0) + 1);
-    }
-
-    const newAssignments: { Judge_ID: string; Project_ID: string }[] = [];
-
-    for (const project of targetProjects) {
-      const alreadyAssigned = new Set(
-        [...assignmentMap.keys()]
-          .filter(k => k.endsWith(`:${project.Project_ID}`))
-          .map(k => k.split(':')[0])
-      );
-
-      const needed = judgesPerProject - alreadyAssigned.size;
-      if (needed <= 0) continue;
-
-      const available = sortJudgesForDistribution(
-        judges.filter(j => !alreadyAssigned.has(j.Judge_ID)),
-        judgeCounts
-      );
-
-      for (let i = 0; i < Math.min(needed, available.length); i++) {
-        const judge = available[i];
-        newAssignments.push({ Judge_ID: judge.Judge_ID, Project_ID: project.Project_ID });
-        judgeCounts.set(judge.Judge_ID, (judgeCounts.get(judge.Judge_ID) || 0) + 1);
-      }
-    }
-
-    if (newAssignments.length === 0) return;
-
+    setBusy(true); setError(''); setNotice('');
     try {
-      await apiFetch('/assignments/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ assignments: newAssignments }),
-      });
+      const result = await apiFetch<{ created: number; shortages: { Project_Number: string; Assigned: number; Target: number }[] }>('/assignments/auto', { method: 'POST', body: JSON.stringify({ Event_ID: event.Event_ID, Judges_Per_Project: judgesPerProject, Category: filter || null }) });
+      setNotice(`${result.created} assignments added. ${result.shortages.length ? 'Below target: ' + result.shortages.map(item => `${item.Project_Number} (${item.Target - item.Assigned} short)`).join(', ') : 'All eligible presentations meet the assignment target.'}`);
       await loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Assignment distribution failed.'); }
+    finally { setBusy(false); }
   }
 
   async function handleClearAll() {
@@ -139,7 +80,7 @@ export function AssignmentsPage() {
     try {
       await apiFetch(`/assignments/clear?event_id=${event.Event_ID}`, { method: 'DELETE' });
       setAssignmentMap(new Map());
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'The action failed.'); }
   }
 
   const filteredProjects = projects
@@ -166,6 +107,9 @@ export function AssignmentsPage() {
 
   return (
     <div>
+      {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
+      {notice && <p role="status" className="mb-4 border border-gray-300 p-4">{notice}</p>}
+      <p className="mb-4 text-sm leading-6">{event?.Event_Name}. Automatic distribution preserves existing assignments, skips pending or excluded presentations, and enforces recorded conflicts. Assignment counts are separate from completed reviews in Competition setup.</p>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -182,7 +126,7 @@ export function AssignmentsPage() {
         <input
           type="number"
           min={1}
-          max={judges.length}
+          max={100}
           value={judgesPerProject}
           onChange={e => setJudgesPerProject(Number(e.target.value))}
           className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center"
@@ -190,6 +134,7 @@ export function AssignmentsPage() {
         <span className="text-sm text-gray-500">judges per {filter || 'all'} project</span>
         <button
           onClick={handleAutoAssign}
+          disabled={busy || judges.length === 0 || !Number.isInteger(judgesPerProject) || judgesPerProject < 1}
           className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700"
         >
           Distribute

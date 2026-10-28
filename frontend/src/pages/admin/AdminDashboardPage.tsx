@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
+import { getSelectedEvent } from '../../api/event';
 import { conferenceDates } from '../../api/publicPosters';
 import type { EventSummary, Event } from '../../types';
 
@@ -14,11 +15,13 @@ export function AdminDashboardPage() {
 
   useEffect(() => {
     loadData();
+    const timer = setInterval(loadData, 10000);
+    return () => clearInterval(timer);
   }, []);
 
   async function loadData() {
     try {
-      const ev = await apiFetch<Event | null>('/events/active');
+      const ev = await getSelectedEvent();
       setEvent(ev);
       if (ev) {
         const s = await apiFetch<EventSummary>(`/results/summary?event_id=${ev.Event_ID}`);
@@ -45,8 +48,9 @@ export function AdminDashboardPage() {
   const cards = summary ? [
     { label: 'Projects', value: summary.Total_Projects, sub: `${summary.Poster_Count} poster, ${summary.Art_Count} art` },
     { label: 'Judges', value: summary.Total_Judges, sub: 'registered' },
-    { label: 'Scores Submitted', value: summary.Total_Scores_Submitted, sub: 'judge-project pairs' },
-    { label: 'Coverage', value: `${summary.Scoring_Coverage_Percent}%`, sub: `${summary.Projects_With_Scores} of ${summary.Total_Projects} projects scored` },
+    { label: 'Complete reviews', value: summary.Total_Scores_Submitted, sub: 'valid score sheets' },
+    { label: 'Coverage', value: `${summary.Scoring_Coverage_Percent}%`, sub: `${summary.Projects_With_Scores} of ${summary.Eligible_Projects} eligible presentations with a review` },
+    { label: 'Review target', value: summary.Required_Reviews ?? 'Pending', sub: `${summary.Projects_At_Target} presentations at target` },
   ] : [];
 
   return (

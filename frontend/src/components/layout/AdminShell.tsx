@@ -8,6 +8,8 @@ const navItems = [
   { path: '/admin/assignments', label: 'Assignments' },
   { path: '/admin/rubrics', label: 'Rubrics' },
   { path: '/admin/results', label: 'Results' },
+  { path: '/admin/voting', label: 'Attendee voting' },
+  { path: '/admin/competition', label: 'Competition setup' },
 ];
 
 export function AdminShell() {
@@ -16,7 +18,7 @@ export function AdminShell() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(241,179,0,0.16),_transparent_30%),linear-gradient(180deg,_#f7f2e7_0%,_#efe5d5_100%)] lg:flex">
-      <aside className="flex w-full flex-col border-b border-[#3c3320] bg-[#111111] text-white lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
+      <aside className="flex w-full flex-col border-b border-[#3c3320] bg-[#111111] text-white lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r print:hidden">
         <div className="border-b border-[#3c3320] px-6 py-6">
           <div className="rounded-2xl bg-white px-4 py-4 shadow-sm">
             <img
@@ -40,7 +42,7 @@ export function AdminShell() {
           {navItems.map(item => (
             <Link
               key={item.path}
-              to={item.path}
+              to={`${item.path}${location.search}`}
               className={`block rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                 location.pathname === item.path
                   ? 'bg-[#f1b300] text-black shadow-sm'

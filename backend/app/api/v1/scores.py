@@ -23,6 +23,7 @@ from app.schemas.score import (
     ScoreOverrideUpdate,
     ScoreRead,
 )
+from app.services.competition import lock_event
 
 router = APIRouter(prefix="/scores", tags=["scores"])
 log = logging.getLogger(__name__)
@@ -178,15 +179,18 @@ async def override_score(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    if body.Score_Value < 0 or body.Score_Value > 3:
-        raise HTTPException(
-            status_code=400, detail=f"Score must be 0-3, got {body.Score_Value}"
-        )
-
     result = await db.execute(select(Score).where(Score.Score_ID == score_id))
     score = result.scalar_one_or_none()
     if not score or not score.Is_Active:
         raise HTTPException(status_code=404, detail="Score not found")
+    project = await db.get(Project, score.Project_ID)
+    await lock_event(db, project.Event_ID)
+    await db.refresh(score)
+    if not score.Is_Active:
+        raise HTTPException(404, "Score not found")
+    criterion = await db.get(RubricCriterion, score.Criterion_ID)
+    if not criterion.Min_Score <= body.Score_Value <= criterion.Max_Score:
+        raise HTTPException(422, "Score is outside this criterion's allowed range")
 
     if score.Score_Value != body.Score_Value:
         db.add(
@@ -214,6 +218,10 @@ async def delete_submission(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    await lock_event(db, project.Event_ID)
     score_ids_result = await db.execute(
         select(Score).where(
             Score.Project_ID == project_id,
@@ -255,5 +263,8 @@ async def delete_score(
     score = result.scalar_one_or_none()
     if not score or not score.Is_Active:
         raise HTTPException(status_code=404, detail="Score not found")
+    project = await db.get(Project, score.Project_ID)
+    await lock_event(db, project.Event_ID)
+    await db.refresh(score)
     score.Is_Active = False
     await db.commit()

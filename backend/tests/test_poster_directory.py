@@ -726,3 +726,73 @@ async def test_judge_detail_cannot_read_other_events_or_withdrawn_projects(conte
     assert (
         await client.get(f"/api/v1/judge/projects/{project['Project_ID']}")
     ).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_public_draft_preview_requires_dev_mode_and_preserves_reviews(
+    context, monkeypatch
+):
+    from app.config import settings
+    from app.services.asm_roster import prepare_submissions, stage_submissions
+
+    client, sessions, _ = context
+    async with sessions() as db:
+        await stage_submissions(
+            db,
+            "asm",
+            prepare_submissions(
+                source_fixture(), "source.xlsx", "hash", "Form Responses 1"
+            ),
+        )
+        await db.commit()
+    assert (await directory(client))["event"] is None
+    monkeypatch.setattr(settings, "public_draft_preview", True)
+    monkeypatch.setattr(settings, "dev_mode", False)
+    assert (await directory(client))["event"] is None
+    monkeypatch.setattr(settings, "dev_mode", True)
+    payload = await directory(client)
+    assert payload["is_draft_preview"]
+    assert len(payload["posters"]) == 4
+    assert set(payload["posters"][0]) == {
+        "Project_Number",
+        "Project_Title",
+        "Presenter_Display_Name",
+        "Institution",
+        "Table_Number",
+    }
+    assert "example.edu" not in str(payload)
+    assert "source_row" not in str(payload)
+    assert (await publish(client)).status_code == 409
+    async with sessions() as db:
+        projects = list(await db.scalars(select(Project)))
+        assert all(not project.Is_Published for project in projects)
+        assert sum(project.Roster_Review_Required for project in projects) == 3
+    await create(client, Category="Art", Project_Title="Art stays private")
+    project_id = projects[0].Project_ID
+    await client.post(f"/api/v1/projects/{project_id}/withdraw")
+    payload = await directory(client)
+    assert len(payload["posters"]) == 3
+    assert "Art stays private" not in str(payload)
+    monkeypatch.setattr(settings, "public_draft_preview", False)
+    assert (await directory(client))["event"] is None
+
+
+@pytest.mark.asyncio
+async def test_draft_preview_still_requires_one_active_event(context, monkeypatch):
+    from app.config import settings
+
+    client, sessions, _ = context
+    monkeypatch.setattr(settings, "public_draft_preview", True)
+    monkeypatch.setattr(settings, "dev_mode", True)
+    await create(client)
+    async with sessions() as db:
+        db.add(
+            Event(
+                Event_ID="other",
+                Event_Name="Other",
+                Event_Date=datetime.date(2026, 10, 31),
+                Is_Active=True,
+            )
+        )
+        await db.commit()
+    assert (await directory(client))["event"] is None

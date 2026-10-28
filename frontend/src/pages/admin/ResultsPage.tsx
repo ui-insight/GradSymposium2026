@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '../../api/client';
+import { getSelectedEvent } from '../../api/event';
 import type {
   Event,
   JudgeScoreReview,
@@ -7,7 +8,8 @@ import type {
   ProjectScoreReview,
   ProjectScoreReviewCriterion,
 } from '../../types';
-import { storage } from '../../utils/storage';
+import { downloadAdmin } from '../../api/voting';
+import type { CompetitionStatus } from '../../types/competition';
 
 interface ActivityItem {
   Judge_Name: string;
@@ -29,6 +31,9 @@ function buildDraftScores(review: ProjectScoreReview): Record<number, number> {
 }
 
 export function ResultsPage() {
+  const [error, setError] = useState('');
+  const [awardGroups, setAwardGroups] = useState<string[]>([]);
+  const [awardGroup, setAwardGroup] = useState('');
   const [results, setResults] = useState<ProjectResult[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
@@ -47,30 +52,32 @@ export function ResultsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const ev = eventRef.current || await apiFetch<Event | null>('/events/active');
+      const ev = eventRef.current || await getSelectedEvent();
       if (!eventRef.current && ev) {
         eventRef.current = ev;
         setEvent(ev);
       }
       if (ev) {
-        const [r, a] = await Promise.all([
-          apiFetch<ProjectResult[]>(`/results/?event_id=${ev.Event_ID}`),
+        const [r, a, status] = await Promise.all([
+          apiFetch<ProjectResult[]>(`/results/?event_id=${ev.Event_ID}${awardGroup ? `&award_group=${encodeURIComponent(awardGroup)}` : ''}`),
           apiFetch<ActivityItem[]>(`/results/activity?event_id=${ev.Event_ID}&limit=8`)
             .catch(err => {
               console.error('Failed to load recent activity:', err);
               return [];
             }),
+          apiFetch<CompetitionStatus>(`/competition/${ev.Event_ID}`),
         ]);
+        setAwardGroups(status.settings.Award_Groups || []);
         setResults(r);
         setActivity(a);
         setLastRefresh(new Date());
       }
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Results could not be loaded.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [awardGroup]);
 
   useEffect(() => {
     loadData();
@@ -105,17 +112,8 @@ export function ResultsPage() {
 
   async function handleExport() {
     if (!event) return;
-    const token = storage.getItem('access_token');
-    const res = await fetch(`/api/v1/results/export?event_id=${event.Event_ID}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'symposium_results.xlsx';
-    a.click();
-    URL.revokeObjectURL(url);
+    try { await downloadAdmin(`/results/export?event_id=${event.Event_ID}${awardGroup ? `&award_group=${encodeURIComponent(awardGroup)}` : ''}`, 'symposium_results.xlsx'); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Export failed.'); }
   }
 
   async function handleSaveSubmission(submission: JudgeScoreReview) {
@@ -261,6 +259,9 @@ export function ResultsPage() {
         Auto-refreshes every 10s &middot; Last updated {lastRefresh.toLocaleTimeString()}
       </p>
 
+      {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
+      <p className="mb-4 text-sm leading-6">{event?.Event_Name}. Only complete, valid score sheets count. Ranks remain provisional until required reviews and confirmed rules are satisfied. A tie flagged for manual resolution requires an organizer decision.</p>
+      {awardGroups.length > 0 && <label className="mb-5 block text-sm font-semibold">Award group<select className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" value={awardGroup} onChange={e => setAwardGroup(e.target.value)}><option value="">All groups (coverage overview, unranked)</option>{awardGroups.map(group => <option key={group} value={group}>{group}</option>)}</select></label>}
       {activity.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">
@@ -337,12 +338,12 @@ export function ResultsPage() {
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
-                      r.Rank <= 3
+                      r.Rank > 0 && r.Rank <= 3
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-gray-100 text-gray-600'
                     }`}
                   >
-                    {r.Rank}
+                    {r.Rank || '—'}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono">{r.Project_Number}</td>
@@ -362,7 +363,7 @@ export function ResultsPage() {
                     {r.Category}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">{r.Judge_Count}</td>
+                <td className="px-4 py-3 text-right">{r.Judge_Count}{r.Required_Reviews != null && ` / ${r.Required_Reviews}`}<p className="mt-1 text-xs text-gray-600">{r.Provisional ? 'Provisional' : 'Target met'}{r.Tied ? ' · Tied' : ''}</p></td>
                 <td className="px-4 py-3 text-right font-semibold">{r.Total_Score}</td>
                 <td className="px-4 py-3 text-right font-semibold text-blue-600">
                   {r.Average_Score}
@@ -380,7 +381,7 @@ export function ResultsPage() {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-gray-400">No scores yet</div>
+          <div className="text-center py-8 text-gray-400">No eligible presentations in this view. Review competition setup and eligibility.</div>
         )}
       </div>
 
@@ -442,6 +443,7 @@ export function ResultsPage() {
 
               {review && (
                 <div className="space-y-5">
+                  <p className="text-sm leading-6 text-gray-600">Stored score history below may include incomplete or conflicted reviews. Official coverage and ranked totals use only complete, valid reviews shown in Competition setup.</p>
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-xl border border-gray-200 bg-white p-4">
                       <div className="text-xs font-medium uppercase tracking-wide text-gray-400">
@@ -585,7 +587,7 @@ export function ResultsPage() {
                                     </td>
                                     <td className="py-3 pr-4 align-top">
                                       <div className="flex items-center gap-2">
-                                        {[0, 1, 2, 3].map(score => (
+                                        {Array.from({ length: criterion.Max_Score - criterion.Min_Score + 1 }, (_, i) => criterion.Min_Score + i).map(score => (
                                           <button
                                             key={score}
                                             onClick={() =>

@@ -1,176 +1,196 @@
-"""Results aggregation service."""
+"""Complete-review results; award rules and eligibility are organizer decisions."""
 
-from sqlalchemy import func, select
+from collections import defaultdict
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.competition import CompetitionSettings
 from app.models.judge import Judge
 from app.models.project import Project
-from app.models.score import Score
 from app.schemas.results import EventSummary, ProjectResult
+from app.services.competition import complete_reviews
 
 
 async def get_project_results(
     db: AsyncSession,
     event_id: str,
     category: str | None = None,
+    award_group: str | None = None,
 ) -> list[ProjectResult]:
-    """Get aggregated, ranked results for projects in an event."""
-
-    # Subquery: total score per judge per project
-    judge_totals = (
-        select(
-            Score.Project_ID,
-            Score.Judge_ID,
-            func.sum(Score.Score_Value).label("judge_total"),
-        )
-        .where(Score.Is_Active.is_(True))
-        .group_by(Score.Project_ID, Score.Judge_ID)
-        .subquery()
-    )
-
-    # Aggregate across judges
-    stmt = (
-        select(
-            Project.Project_ID,
-            Project.Project_Number,
-            Project.Project_Title,
-            Project.Presenter_First_Name,
-            Project.Presenter_Last_Name,
-            Project.Presenter_Display_Name,
-            Project.Department,
-            Project.Category,
-            func.count(judge_totals.c.Judge_ID.distinct()).label("judge_count"),
-            func.sum(judge_totals.c.judge_total).label("total_score"),
-            func.avg(judge_totals.c.judge_total).label("average_score"),
-        )
-        .join(judge_totals, judge_totals.c.Project_ID == Project.Project_ID)
-        .where(Project.Event_ID == event_id)
-        .where(Project.Is_Active.is_(True))
-        .group_by(Project.Project_ID)
-    )
-
-    if category:
-        stmt = stmt.where(Project.Category == category)
-
-    stmt = stmt.order_by(
-        Project.Category,
-        func.avg(judge_totals.c.judge_total).desc(),
-        func.sum(judge_totals.c.judge_total).desc(),
-    )
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    results: list[ProjectResult] = []
-    current_category = None
-    rank = 0
-
-    for row in rows:
-        judge_count = row.judge_count or 0
-        total_score = row.total_score or 0
-        avg_score = row.average_score or 0.0
-
-        if row.Category != current_category:
-            current_category = row.Category
-            rank = 1
-        else:
-            rank += 1
-
-        results.append(
-            ProjectResult(
-                Project_ID=row.Project_ID,
-                Project_Number=row.Project_Number,
-                Project_Title=row.Project_Title,
-                Presenter_First_Name=row.Presenter_First_Name,
-                Presenter_Last_Name=row.Presenter_Last_Name,
-                Presenter_Display_Name=row.Presenter_Display_Name,
-                Department=row.Department,
-                Category=row.Category,
-                Judge_Count=judge_count,
-                Total_Score=total_score,
-                Average_Score=round(avg_score, 2),
-                Rank=rank,
+    rules = await db.get(CompetitionSettings, event_id)
+    projects = list(
+        await db.scalars(
+            select(Project).where(
+                Project.Event_ID == event_id, Project.Is_Active.is_(True)
             )
         )
-
+    )
+    totals = defaultdict(list)
+    for review in await complete_reviews(db, event_id):
+        totals[review["Project_ID"]].append(review["Total_Score"])
+    candidates = []
+    for project in projects:
+        if category and project.Category != category:
+            continue
+        if rules and (
+            project.Judging_Eligible is not True or project.Roster_Review_Required
+        ):
+            continue
+        if award_group and award_group not in (project.Award_Groups or []):
+            continue
+        values = totals[project.Project_ID]
+        if not values:
+            continue
+        average = sum(values) / len(values)
+        metric = sum(values) if rules and rules.Aggregation == "total" else average
+        candidates.append((project, values, average, metric))
+    candidates.sort(
+        key=lambda row: (
+            row[0].Category,
+            -row[3],
+            -sum(row[1]) if not rules else 0,
+            row[0].Project_Number,
+        )
+    )
+    results = []
+    category_index = defaultdict(int)
+    qualified_index = defaultdict(int)
+    previous = {}
+    ranks = {}
+    for project, values, average, metric in candidates:
+        category_index[project.Category] += 1
+        meets = (
+            len(values) >= rules.Required_Reviews
+            if rules and rules.Required_Reviews
+            else None
+        )
+        group_selected = not (rules and rules.Award_Groups) or bool(award_group)
+        qualified = bool(
+            rules
+            and rules.Rules_Confirmed
+            and rules.Aggregation
+            and rules.Tie_Policy
+            and meets
+            and group_selected
+        )
+        tied = (
+            sum(
+                p.Category == project.Category
+                and m == metric
+                and (
+                    not rules
+                    or not rules.Required_Reviews
+                    or len(v) >= rules.Required_Reviews
+                )
+                for p, v, _, m in candidates
+            )
+            > 1
+        )
+        rank = category_index[project.Category] if not rules else 0
+        if qualified:
+            qualified_index[project.Category] += 1
+            if previous.get(project.Category) != metric:
+                ranks[project.Category] = qualified_index[project.Category]
+            rank = ranks[project.Category]
+            previous[project.Category] = metric
+        scope = [
+            candidate
+            for candidate in projects
+            if candidate.Category == project.Category
+            and candidate.Judging_Eligible is True
+            and not candidate.Roster_Review_Required
+            and (not award_group or award_group in (candidate.Award_Groups or []))
+        ]
+        all_targets_met = bool(
+            rules
+            and rules.Required_Reviews
+            and scope
+            and all(len(totals[p.Project_ID]) >= rules.Required_Reviews for p in scope)
+        )
+        unresolved_roster = any(
+            candidate.Category == project.Category
+            and (candidate.Judging_Eligible is None or candidate.Roster_Review_Required)
+            for candidate in projects
+        )
+        provisional = bool(
+            rules
+            and (
+                not qualified
+                or rules.Judging_Open
+                or not all_targets_met
+                or unresolved_roster
+                or (tied and rules.Tie_Policy == "manual")
+            )
+        )
+        results.append(
+            ProjectResult(
+                Project_ID=project.Project_ID,
+                Project_Number=project.Project_Number,
+                Project_Title=project.Project_Title,
+                Presenter_First_Name=project.Presenter_First_Name,
+                Presenter_Last_Name=project.Presenter_Last_Name,
+                Presenter_Display_Name=project.Presenter_Display_Name,
+                Department=project.Department,
+                Category=project.Category,
+                Judge_Count=len(values),
+                Total_Score=sum(values),
+                Average_Score=round(average, 2),
+                Rank=rank,
+                Required_Reviews=rules.Required_Reviews if rules else None,
+                Meets_Review_Target=meets,
+                Award_Groups=project.Award_Groups or [],
+                Tied=tied,
+                Provisional=provisional,
+            )
+        )
     return results
 
 
 async def get_event_summary(db: AsyncSession, event_id: str) -> EventSummary:
-    """Get high-level event scoring statistics."""
-
-    # Total projects
-    proj_result = await db.execute(
-        select(func.count(Project.Project_ID)).where(
-            Project.Event_ID == event_id, Project.Is_Active.is_(True)
+    rules = await db.get(CompetitionSettings, event_id)
+    projects = list(
+        await db.scalars(
+            select(Project).where(
+                Project.Event_ID == event_id, Project.Is_Active.is_(True)
+            )
         )
     )
-    total_projects = proj_result.scalar() or 0
-
-    # Category counts
-    poster_result = await db.execute(
-        select(func.count(Project.Project_ID)).where(
-            Project.Event_ID == event_id,
-            Project.Category == "Poster",
-            Project.Is_Active.is_(True),
+    judges = list(
+        await db.scalars(
+            select(Judge.Judge_ID).where(
+                Judge.Event_ID == event_id, Judge.Is_Active.is_(True)
+            )
         )
     )
-    poster_count = poster_result.scalar() or 0
-
-    art_result = await db.execute(
-        select(func.count(Project.Project_ID)).where(
-            Project.Event_ID == event_id,
-            Project.Category == "Art",
-            Project.Is_Active.is_(True),
+    eligible = {
+        p.Project_ID
+        for p in projects
+        if not rules or (p.Judging_Eligible is True and not p.Roster_Review_Required)
+    }
+    reviews = [
+        r for r in await complete_reviews(db, event_id) if r["Project_ID"] in eligible
+    ]
+    scored = {r["Project_ID"] for r in reviews}
+    at_target = 0
+    if rules and rules.Required_Reviews:
+        at_target = sum(
+            sum(r["Project_ID"] == project_id for r in reviews)
+            >= rules.Required_Reviews
+            for project_id in eligible
         )
-    )
-    art_count = art_result.scalar() or 0
-
-    # Total judges
-    judge_result = await db.execute(
-        select(func.count(Judge.Judge_ID)).where(
-            Judge.Event_ID == event_id, Judge.Is_Active.is_(True)
-        )
-    )
-    total_judges = judge_result.scalar() or 0
-
-    # Total score submissions (unique judge-project pairs)
-    submissions = (
-        select(Score.Judge_ID, Score.Project_ID)
-        .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(
-            Project.Event_ID == event_id,
-            Project.Is_Active.is_(True),
-            Score.Is_Active.is_(True),
-        )
-        .distinct()
-        .subquery()
-    )
-    score_pairs = await db.execute(select(func.count()).select_from(submissions))
-    total_scores = score_pairs.scalar() or 0
-
-    # Projects that have at least one score
-    scored_projects = await db.execute(
-        select(func.count(Score.Project_ID.distinct()))
-        .join(Project, Score.Project_ID == Project.Project_ID)
-        .where(
-            Project.Event_ID == event_id,
-            Project.Is_Active.is_(True),
-            Score.Is_Active.is_(True),
-        )
-    )
-    projects_with_scores = scored_projects.scalar() or 0
-
-    coverage = (
-        (projects_with_scores / total_projects * 100) if total_projects > 0 else 0.0
-    )
-
     return EventSummary(
-        Total_Projects=total_projects,
-        Total_Judges=total_judges,
-        Total_Scores_Submitted=total_scores,
-        Projects_With_Scores=projects_with_scores,
-        Scoring_Coverage_Percent=round(coverage, 1),
-        Poster_Count=poster_count,
-        Art_Count=art_count,
+        Total_Projects=len(projects),
+        Total_Judges=len(judges),
+        Total_Scores_Submitted=len(reviews),
+        Projects_With_Scores=len(scored),
+        Scoring_Coverage_Percent=round(len(scored) / len(eligible) * 100, 1)
+        if eligible
+        else 0,
+        Poster_Count=sum(p.Category == "Poster" for p in projects),
+        Art_Count=sum(p.Category == "Art" for p in projects),
+        Eligible_Projects=len(eligible),
+        Required_Reviews=rules.Required_Reviews if rules else None,
+        Projects_At_Target=at_target,
+        Judging_Open=rules.Judging_Open if rules else False,
     )

@@ -14,10 +14,14 @@ import { JudgeProjectListPage } from './pages/judge/JudgeProjectListPage'
 import { JudgeScoringPage } from './pages/judge/JudgeScoringPage'
 import { LandingPage } from './pages/LandingPage'
 import { PosterLookupPage } from './pages/PosterLookupPage'
+import { VotePage } from './pages/VotePage'
+import { VotingPage } from './pages/admin/VotingPage'
+import { CompetitionPage } from './pages/admin/CompetitionPage'
 
 function App() {
   return (
     <Routes>
+      <Route path="/vote" element={<VotePage />} />
       <Route path="/posters" element={<PosterLookupPage />} />
       {/* Admin routes */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -36,6 +40,8 @@ function App() {
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="rubrics" element={<RubricsPage />} />
         <Route path="results" element={<ResultsPage />} />
+        <Route path="voting" element={<VotingPage />} />
+        <Route path="competition" element={<CompetitionPage />} />
       </Route>
 
       {/* Judge routes */}

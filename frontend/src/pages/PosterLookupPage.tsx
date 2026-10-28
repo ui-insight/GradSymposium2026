@@ -61,6 +61,11 @@ export function PosterLookupPage() {
         <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Find my poster</h1>
         {directory?.event && <p className="mt-4 max-w-[70ch] text-sm leading-6 text-[oklch(0.42_0.015_85)]">{conferenceDates(directory.event)}{directory.event.Location && ` · ${directory.event.Location}`}</p>}
 
+        {directory?.is_draft_preview && <aside aria-label="Draft roster notice" className="mt-6 border border-amber-300 bg-amber-50 p-5 text-amber-950">
+          <h2 className="font-semibold">Dev preview: unconfirmed draft roster</h2>
+          <p className="mt-2 max-w-[70ch] text-sm leading-6">This list includes possible duplicates and talk-only submissions for organizer review. Candidate numbers identify source submissions; they do not confirm poster acceptance. Locations have not been assigned.</p>
+        </aside>}
+
         {error ? (
           <div role="alert" className="mt-8 rounded-xl border border-red-300 bg-red-50 p-5">
             <p>{error}</p>
@@ -97,7 +102,7 @@ export function PosterLookupPage() {
               <ul aria-label="Posters" className="divide-y divide-[oklch(0.85_0.025_85)]">
                 {matches.map(poster => <li key={poster.Project_Number} className="grid break-inside-avoid gap-4 py-7 sm:grid-cols-[8rem_1fr] sm:gap-7">
                   <div>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[oklch(0.42_0.04_85)]">Poster number</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[oklch(0.42_0.04_85)]">{directory.is_draft_preview ? 'Candidate number' : 'Poster number'}</span>
                     <p className="mt-1 font-mono text-3xl font-bold">{poster.Project_Number}</p>
                     <p className="mt-2 text-sm text-[oklch(0.42_0.015_85)]">{poster.Table_Number ? `Board / table: ${poster.Table_Number}` : 'Location to be assigned'}</p>
                   </div>

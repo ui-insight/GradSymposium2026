@@ -5,17 +5,18 @@ import type { JudgeProject } from '../../types';
 
 export function JudgeProjectListPage() {
   const [projects, setProjects] = useState<JudgeProject[]>([]);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'assigned' | 'all'>('assigned');
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const timer = setInterval(loadData, 10000); return () => clearInterval(timer); }, []);
 
   async function loadData() {
     try {
       const p = await apiFetch<JudgeProject[]>('/judge/projects');
       setProjects(p);
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Projects could not be loaded.'); }
     finally { setLoading(false); }
   }
 
@@ -41,6 +42,7 @@ export function JudgeProjectListPage() {
         Projects to Score
       </h1>
 
+      {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       {assigned.length > 0 && (
         <p className="mb-4 text-base text-gray-500 sm:text-sm">
           {scoredCount} of {assigned.length} assigned projects scored
@@ -107,6 +109,7 @@ function ProjectCard({ project: p }: { project: JudgeProject }) {
             <span className={`rounded-full px-2 py-1 text-sm font-medium sm:py-0.5 sm:text-xs ${
               p.Category === 'Art' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
             }`}>{p.Category}</span>
+            {!p.can_score && <span className="text-sm font-semibold text-amber-900">Scoring unavailable</span>}
             {p.is_scored && (
               <span className="rounded-full bg-green-100 px-2 py-1 text-sm font-medium text-green-700 sm:py-0.5 sm:text-xs">
                 Scored

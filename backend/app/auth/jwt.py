@@ -13,12 +13,17 @@ def create_access_token(
     subject: str,
     role: str,
     expires_delta: datetime.timedelta | None = None,
+    extra_claims: dict | None = None,
 ) -> str:
     expire = datetime.datetime.now(datetime.timezone.utc) + (
         expires_delta
         or datetime.timedelta(minutes=settings.access_token_expire_minutes)
     )
     payload = {"sub": subject, "role": role, "exp": expire}
+    if extra_claims:
+        payload.update(
+            {key: value for key, value in extra_claims.items() if key not in payload}
+        )
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 

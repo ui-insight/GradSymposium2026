@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
 import type { JudgeProjectDetail, Criterion } from '../../types';
 
-const SCORE_LABELS = ['Poor', 'Fair', 'Good', 'Excellent'];
 const SCORE_COLORS = [
   'bg-red-100 text-red-700 border-red-300',
   'bg-orange-100 text-orange-700 border-orange-300',
@@ -50,14 +49,14 @@ export function JudgeScoringPage() {
   }
 
   async function handleSubmit() {
-    if (!detail?.rubric) return;
+    if (!detail?.rubric || !detail.can_score) return;
     setSubmitting(true);
     setError(null);
     setSubmitNotice(null);
     try {
-      const scoreEntries = Object.entries(scores).map(([cid, val]) => ({
-        Criterion_ID: parseInt(cid),
-        Score_Value: val,
+      const scoreEntries = detail.rubric.criteria.map(criterion => ({
+        Criterion_ID: criterion.Criterion_ID,
+        Score_Value: scores[criterion.Criterion_ID],
       }));
       const response = await apiFetch<{ feedback_saved?: boolean }>(`/judge/projects/${projectId}/scores`, {
         method: 'POST',
@@ -107,7 +106,7 @@ export function JudgeScoringPage() {
   const criteria = detail.rubric?.criteria || [];
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
   const maxScore = detail.rubric?.Max_Score || 0;
-  const allScored = criteria.every(c => scores[c.Criterion_ID] !== undefined);
+  const allScored = criteria.length > 0 && criteria.every(c => scores[c.Criterion_ID] !== undefined);
 
   // Group criteria
   const groups: Record<string, Criterion[]> = {};
@@ -151,6 +150,7 @@ export function JudgeScoringPage() {
         </div>
       )}
 
+      {!detail.can_score && <p role="status" className="mb-4 border border-amber-300 bg-amber-50 p-4 text-sm leading-6">{detail.Judging_Message}</p>}
       {/* Scoring form */}
       {Object.entries(groups).map(([groupName, groupCriteria]) => (
         <div key={groupName} className="mb-4">
@@ -168,11 +168,13 @@ export function JudgeScoringPage() {
                 <p className="mb-3 text-base font-medium text-gray-800 sm:text-sm">
                   {c.Criterion_Name}
                 </p>
+                {c.Description && <p className="mb-3 text-sm leading-6 text-gray-600">{c.Description}</p>}
                 <div className="grid grid-cols-4 gap-2.5 sm:gap-2">
-                  {[0, 1, 2, 3].map(val => (
+                  {Array.from({ length: c.Max_Score - c.Min_Score + 1 }, (_, i) => c.Min_Score + i).map(val => (
                     <button
                       key={val}
                       onClick={() => setScore(c.Criterion_ID, val)}
+                      disabled={!detail.can_score || submitting}
                       className={`min-h-20 rounded-lg border-2 px-1 py-3 text-base font-medium transition-all sm:min-h-16 sm:text-sm ${
                         scores[c.Criterion_ID] === val
                           ? SCORE_SELECTED[val]
@@ -183,7 +185,7 @@ export function JudgeScoringPage() {
                         {val}
                       </div>
                       <div className="mt-1 text-xs opacity-75 sm:text-[10px]">
-                        {SCORE_LABELS[val]}
+                        points
                       </div>
                     </button>
                   ))}
@@ -200,6 +202,8 @@ export function JudgeScoringPage() {
           Feedback for Presenter <span className="text-gray-400 font-normal">(optional)</span>
         </label>
         <textarea
+          disabled={!detail.can_score || submitting}
+          maxLength={10000}
           value={feedback}
           onChange={e => setFeedback(e.target.value)}
           placeholder="Any comments or suggestions for the presenter..."
@@ -218,7 +222,7 @@ export function JudgeScoringPage() {
         </div>
         <button
           onClick={handleSubmit}
-          disabled={!allScored || submitting}
+          disabled={!detail.can_score || !allScored || submitting}
           className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 sm:px-8 sm:py-3 sm:text-sm"
         >
           {submitting ? 'Submitting...' : 'Submit Scores'}

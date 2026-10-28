@@ -4,19 +4,22 @@ Prepared October 27, 2026.
 
 ## Implementation status
 
-The first implementation slice is complete: permanent number reservations,
-previewable draft CSV imports, roster corrections, admin publication controls,
-and public poster lookup with co-presenter search and printing. An empty ASM
-setup command and isolated deployment settings are included. See
-[setup and operating notes](ASM_POSTER_LOOKUP.md).
+Numbering and lookup are deployed on dev, including Barrie's explicitly enabled
+public draft preview of the 108 source responses. Fifteen source inclusion
+decisions remain pending; no duplicate was merged or talk-only request accepted
+automatically. Preview visibility is separate from formal publication.
 
-Verification: 15 backend tests, Ruff, frontend build/lint, a synthetic-data browser
-rehearsal, and unpublished source-roster review in the admin UI. The source
-workbook remains unchanged. All 108 responses are loaded in a persistent local
-draft database, numbered in source order. Four rows in two duplicate groups and
-11 talk-only submissions are flagged; no source rows were merged or omitted.
-Nothing from the source roster is published. Final roster reconciliation,
-physical placement, rubric configuration, and attendee voting remain outstanding.
+Judging and attendee voting foundations are now implemented with organizer rule
+editors, eligibility, conflicts, review targets, valid complete-review counting,
+ballot entitlements and exports. Real ASM judging and voting remain closed with
+rules pending. A separate synthetic event supports rehearsal. See the current
+[competition readiness and operating guide](ASM_COMPETITION_READINESS.md) for
+implemented capabilities, test coverage and limitations. Other score scales,
+session-restricted ballots, ranked vote weighting and attendee award grouping
+still depend on the organizer's selected rules.
+
+The sections below retain the original plan and source evidence; their initial
+gap descriptions are historical, not the current implementation status.
 
 ## Recommended scope
 

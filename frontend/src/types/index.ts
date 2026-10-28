@@ -20,6 +20,9 @@ export interface Project {
   Presenter_Email: string | null;
   Presenter_Display_Name: string | null;
   Institution: string | null;
+  Judging_Eligible: boolean | null;
+  Voting_Eligible: boolean | null;
+  Award_Groups: string[] | null;
   Is_Published: boolean;
   Roster_Review_Required: boolean;
   Roster_Review: {
@@ -67,6 +70,7 @@ export interface Criterion {
 }
 
 export interface Rubric {
+  Is_Locked: boolean;
   Rubric_ID: string;
   Event_ID: string;
   Rubric_Name: string;
@@ -77,6 +81,11 @@ export interface Rubric {
 }
 
 export interface ProjectResult {
+  Required_Reviews: number | null;
+  Meets_Review_Target: boolean | null;
+  Award_Groups: string[];
+  Tied: boolean;
+  Provisional: boolean;
   Project_ID: string;
   Project_Number: string;
   Project_Title: string;
@@ -135,6 +144,10 @@ export interface ProjectScoreReview {
 }
 
 export interface EventSummary {
+  Eligible_Projects: number;
+  Required_Reviews: number | null;
+  Projects_At_Target: number;
+  Judging_Open: boolean;
   Total_Projects: number;
   Total_Judges: number;
   Total_Scores_Submitted: number;
@@ -145,6 +158,7 @@ export interface EventSummary {
 }
 
 export interface JudgeProject {
+  can_score: boolean;
   Project_ID: string;
   Project_Number: string;
   Project_Title: string;
@@ -159,6 +173,10 @@ export interface JudgeProject {
 }
 
 export interface JudgeProjectDetail {
+  can_score: boolean;
+  Judging_Message: string | null;
+  Event_Name: string;
+  Event_Date: string;
   Project_ID: string;
   Project_Number: string;
   Project_Title: string;
@@ -217,6 +235,7 @@ export interface PublicPoster {
 }
 
 export interface PublicPosterDirectory {
+  is_draft_preview: boolean;
   event: PublicEvent | null;
   posters: PublicPoster[];
 }

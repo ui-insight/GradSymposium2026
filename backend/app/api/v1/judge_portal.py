@@ -4,12 +4,15 @@ import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_judge, get_db
 from app.auth.jwt import create_access_token
+from app.config import settings as app_settings
+from app.models.competition import CompetitionSettings
+from app.models.event import Event
 from app.models.feedback import Feedback
 from app.models.judge import Judge
 from app.models.judge_assignment import JudgeAssignment
@@ -18,6 +21,12 @@ from app.models.rubric import Rubric
 from app.models.score import Score
 from app.schemas.auth import JudgeLogin, TokenResponse
 from app.schemas.score import ScoreSubmission
+from app.services.competition import (
+    complete_reviews,
+    has_conflict,
+    lock_event,
+    validate_submission,
+)
 
 router = APIRouter(prefix="/judge", tags=["judge-portal"])
 log = logging.getLogger(__name__)
@@ -45,8 +54,17 @@ async def judge_login(body: JudgeLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me")
-async def judge_me(judge: Judge = Depends(get_current_judge)):
+async def judge_me(
+    judge: Judge = Depends(get_current_judge), db: AsyncSession = Depends(get_db)
+):
+    event = await db.get(Event, judge.Event_ID)
+    rules = await db.get(CompetitionSettings, judge.Event_ID)
     return {
+        "Event_Name": event.Event_Name,
+        "Event_Date": event.Event_Date,
+        "Event_End_Date": event.Event_End_Date,
+        "Location": event.Location,
+        "Is_Rehearsal": bool(rules and rules.Is_Rehearsal),
         "Judge_ID": judge.Judge_ID,
         "First_Name": judge.First_Name,
         "Last_Name": judge.Last_Name,
@@ -80,14 +98,22 @@ async def judge_projects(
     projects = proj_result.scalars().all()
 
     # Get projects this judge has already scored
-    scored_result = await db.execute(
-        select(Score.Project_ID.distinct()).where(
-            Score.Judge_ID == judge.Judge_ID,
-            Score.Is_Active.is_(True),
-        )
+    scored_ids = {
+        r["Project_ID"]
+        for r in await complete_reviews(db, judge.Event_ID)
+        if r["Judge_ID"] == judge.Judge_ID
+    }
+    rules = await db.get(CompetitionSettings, judge.Event_ID)
+    event = await db.get(Event, judge.Event_ID)
+    event_open = event.Is_Active or bool(
+        rules and rules.Is_Rehearsal and app_settings.dev_mode
     )
-    scored_ids = set(scored_result.scalars().all())
-
+    rubrics = {
+        r.Category: r
+        for r in await db.scalars(
+            select(Rubric).where(Rubric.Event_ID == judge.Event_ID)
+        )
+    }
     result = []
     for p in projects:
         result.append(
@@ -103,6 +129,20 @@ async def judge_projects(
                 "Table_Number": p.Table_Number,
                 "is_assigned": p.Project_ID in assigned_ids,
                 "is_scored": p.Project_ID in scored_ids,
+                "can_score": event_open
+                and bool(rubrics.get(p.Category) and rubrics[p.Category].criteria)
+                and (
+                    not rules
+                    or (
+                        rules.Judging_Open
+                        and rules.Rules_Confirmed
+                        and rubrics[p.Category].Is_Locked
+                        and p.Judging_Eligible is True
+                        and not p.Roster_Review_Required
+                        and (not rules.Assignment_Only or p.Project_ID in assigned_ids)
+                    )
+                )
+                and not await has_conflict(db, judge.Judge_ID, p.Project_ID),
             }
         )
 
@@ -183,6 +223,7 @@ async def judge_project_detail(
                     "Criterion_ID": c.Criterion_ID,
                     "Criterion_Name": c.Criterion_Name,
                     "Criterion_Group": c.Criterion_Group,
+                    "Description": c.Description,
                     "Min_Score": c.Min_Score,
                     "Max_Score": c.Max_Score,
                     "Sort_Order": c.Sort_Order,
@@ -191,6 +232,35 @@ async def judge_project_detail(
             ],
         }
 
+    rules = await db.get(CompetitionSettings, judge.Event_ID)
+    event = await db.get(Event, judge.Event_ID)
+    assigned = bool(
+        await db.scalar(
+            select(JudgeAssignment.Assignment_ID).where(
+                JudgeAssignment.Judge_ID == judge.Judge_ID,
+                JudgeAssignment.Project_ID == project_id,
+            )
+        )
+    )
+    can_score = (
+        (
+            event.Is_Active
+            or bool(rules and rules.Is_Rehearsal and app_settings.dev_mode)
+        )
+        and bool(rubric and rubric.criteria)
+        and (
+            not rules
+            or (
+                rules.Judging_Open
+                and rules.Rules_Confirmed
+                and rubric.Is_Locked
+                and project.Judging_Eligible is True
+                and not project.Roster_Review_Required
+                and (not rules.Assignment_Only or assigned)
+            )
+        )
+        and not await has_conflict(db, judge.Judge_ID, project_id)
+    )
     return {
         "Project_ID": project.Project_ID,
         "Project_Number": project.Project_Number,
@@ -200,6 +270,15 @@ async def judge_project_detail(
         "Presenter_Display_Name": project.Presenter_Display_Name,
         "Department": project.Department,
         "Category": project.Category,
+        "Event_Name": event.Event_Name,
+        "Event_Date": event.Event_Date,
+        "can_score": can_score,
+        "Judging_Message": None
+        if can_score
+        else (
+            "Scoring is unavailable while rules, eligibility, assignments, "
+            "or conflicts need organizer review."
+        ),
         "Table_Number": project.Table_Number,
         "rubric": rubric_data,
         "existing_scores": existing_scores,
@@ -217,6 +296,10 @@ async def submit_scores(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit or update all criterion scores for a project."""
+    await lock_event(db, judge.Event_ID)
+    judge = await db.get(Judge, judge.Judge_ID, populate_existing=True)
+    if not judge or not judge.Is_Active:
+        raise HTTPException(403, "Judge account disabled")
     # Verify project exists
     proj_result = await db.execute(
         select(Project).where(
@@ -225,8 +308,22 @@ async def submit_scores(
             Project.Is_Active.is_(True),
         )
     )
-    if not proj_result.scalar_one_or_none():
+    project = proj_result.scalar_one_or_none()
+    if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    rubric = await validate_submission(db, judge, project, body.scores)
+    rubric.Is_Locked = True
+    # Retain any legacy stray rows as inactive history, never mix rubrics.
+    await db.execute(
+        update(Score)
+        .where(
+            Score.Judge_ID == judge.Judge_ID,
+            Score.Project_ID == project_id,
+            Score.Criterion_ID.not_in([entry.Criterion_ID for entry in body.scores]),
+        )
+        .values(Is_Active=False)
+    )
 
     scored_at = datetime.datetime.utcnow()
     for entry in body.scores:
@@ -268,6 +365,7 @@ async def submit_scores(
     # Save feedback separately so optional feedback issues never drop the scores.
     if body.feedback is not None:
         try:
+            await lock_event(db, judge.Event_ID)
             fb_existing = await db.execute(
                 select(Feedback).where(
                     Feedback.Judge_ID == judge.Judge_ID,

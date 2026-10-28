@@ -1,6 +1,6 @@
 """Results and aggregation schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProjectResult(BaseModel):
@@ -18,6 +18,11 @@ class ProjectResult(BaseModel):
     Total_Score: int
     Average_Score: float
     Rank: int = 0
+    Required_Reviews: int | None = None
+    Meets_Review_Target: bool | None = None
+    Award_Groups: list[str] = Field(default_factory=list)
+    Tied: bool = False
+    Provisional: bool = False
 
 
 class EventSummary(BaseModel):
@@ -30,3 +35,7 @@ class EventSummary(BaseModel):
     Scoring_Coverage_Percent: float
     Poster_Count: int
     Art_Count: int
+    Eligible_Projects: int = 0
+    Required_Reviews: int | None = None
+    Projects_At_Target: int = 0
+    Judging_Open: bool = False

@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { apiFetch } from '../../api/client';
-import type { Project, Event, CSVImportResult } from '../../types';
+import { getSelectedEvent } from '../../api/event';
+import type { Project, Event, CSVImportResult, PublicPosterDirectory } from '../../types';
 
 const buttonClass = 'min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-100 disabled:cursor-wait disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700';
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
+  const [draftPreview, setDraftPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +32,11 @@ export function ProjectsPage() {
   }, [approving]);
 
   const loadData = useCallback(async () => {
-    const ev = await apiFetch<Event | null>('/events/active');
+    const [ev, directory] = await Promise.all([
+      getSelectedEvent(),
+      apiFetch<PublicPosterDirectory>('/public/posters'),
+    ]);
+    setDraftPreview(directory.is_draft_preview && Boolean(ev?.Is_Active));
     setEvent(ev);
     setProjects(ev ? await apiFetch<Project[]>(`/projects/?event_id=${ev.Event_ID}`) : []);
   }, []);
@@ -81,6 +87,9 @@ export function ProjectsPage() {
         Presenter_Display_Name: (editing.Presenter_Display_Name || '').trim() || null,
         Institution: (editing.Institution || '').trim() || null,
         Table_Number: (editing.Table_Number || '').trim() || null,
+        Judging_Eligible: editing.Judging_Eligible,
+        Voting_Eligible: editing.Voting_Eligible,
+        Award_Groups: editing.Award_Groups,
       }),
     });
     setEditing(null);
@@ -113,15 +122,15 @@ export function ProjectsPage() {
       {error && <div role="alert" className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">{error}</div>}
       {message && <p role="status" className="mb-4 rounded-lg border border-gray-300 p-4">{message}</p>}
 
-      {event && <section aria-labelledby="publication-heading" className="mb-6 rounded-xl border border-gray-300 bg-white p-5">
+      {event?.Is_Active && <section aria-labelledby="publication-heading" className="mb-6 rounded-xl border border-gray-300 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-[65ch]">
             <h2 id="publication-heading" className="text-lg font-semibold">Public poster directory</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-700">{event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
-            <p className="mt-1 text-sm leading-6 text-gray-600">Imports and corrections stay in draft until you publish. Issued numbers remain fixed, including after withdrawal.</p>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{draftPreview ? 'Dev preview open. All active draft posters are publicly visible for testing; final publication has not been confirmed.' : event.Public_Poster_Lookup_Enabled ? `Directory open. ${published} of ${activePosters.length} active posters published.` : 'Directory hidden. Prepare the roster before publishing.'}</p>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{draftPreview ? 'Corrections appear in the dev preview immediately. Resolve the source review flags before final publication.' : 'Imports and corrections stay in draft until you publish.'} Issued numbers remain fixed, including after withdrawal.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button disabled={busy || activePosters.length === 0 || reviewRequired > 0} onClick={() => setConfirm('publish')} className={`${buttonClass} bg-green-600`}>Publish active posters</button>
-              {event.Public_Poster_Lookup_Enabled && <button disabled={busy} onClick={() => setConfirm('hide')} className={buttonClass}>Hide directory</button>}
+              {!draftPreview && event.Public_Poster_Lookup_Enabled && <button disabled={busy} onClick={() => setConfirm('hide')} className={buttonClass}>Hide directory</button>}
             </div>
           </div>
           <div className="text-center">
@@ -181,6 +190,9 @@ export function ProjectsPage() {
           ['Institution', 'Institution', 200],
           ['Table_Number', 'Board / table location', 20],
         ] as const).map(([field, label, maxLength]) => <label key={field} className="block text-sm font-semibold">{label}<input required={field === 'Project_Title' || field === 'Presenter_Display_Name'} maxLength={maxLength} value={editing[field] || ''} onChange={e => setEditing({ ...editing, [field]: e.target.value })} className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 font-normal" /></label>)}
+        <p className="text-sm leading-6 text-gray-600">Competition eligibility requires organizer approval and is separate from roster inclusion and public lookup. Award group names must match Competition setup.</p>
+        {([['Judging_Eligible', 'Eligible for rubric judging?'], ['Voting_Eligible', 'Eligible for attendee voting?']] as const).map(([key, label]) => <label key={key} className="block text-sm font-semibold">{label}<select className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" value={editing[key] === null ? '' : String(editing[key])} onChange={e => setEditing({ ...editing, [key]: e.target.value === '' ? null : e.target.value === 'true' })}><option value="">Pending confirmation</option><option value="true">Yes</option><option value="false">No</option></select></label>)}
+        <label className="block text-sm font-semibold">Award groups, separated by commas<input className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" value={(editing.Award_Groups || []).join(', ')} onChange={e => setEditing({ ...editing, Award_Groups: e.target.value ? e.target.value.split(',').map(group => group.trim()) : [] })} /></label>
         <div className="flex gap-2"><button disabled={busy} className={`${buttonClass} bg-green-600`}>Save draft</button><button type="button" disabled={busy} onClick={() => setEditing(null)} className={buttonClass}>Cancel</button></div>
       </form>}
 
@@ -205,7 +217,7 @@ export function ProjectsPage() {
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Numbered presentation roster and publication status</caption>
-          <thead className="border-b border-gray-200 bg-gray-50"><tr>{['Number', 'Presentation', 'Institution', 'Location', 'Status', 'Source / review', 'Actions'].map(heading => <th key={heading} scope="col" className="px-4 py-3 font-semibold">{heading}</th>)}</tr></thead>
+          <thead className="border-b border-gray-200 bg-gray-50"><tr>{['Number', 'Presentation', 'Institution', 'Location', 'Status', 'Source / review', 'Competition eligibility', 'Actions'].map(heading => <th key={heading} scope="col" className="px-4 py-3 font-semibold">{heading}</th>)}</tr></thead>
           <tbody className="divide-y divide-gray-200">
             {filtered.map(project => <tr key={project.Project_ID}>
               <td className="whitespace-nowrap px-4 py-4 align-top font-mono font-semibold">{project.Project_Number}</td>
@@ -221,6 +233,7 @@ export function ProjectsPage() {
                 {project.Roster_Review.flags.includes('co_presenters') && <p className="mt-1">Co-presenters share this number.</p>}
                 <details className="mt-2"><summary className="cursor-pointer">Source details</summary><p className="mt-1 break-words">{project.Roster_Review.source_file}, {project.Roster_Review.source_sheet}</p><p className="mt-1">Requested: {project.Roster_Review.requested_formats}</p></details>
               </> : '—'}</td>
+              <td className="min-w-40 px-4 py-4 align-top text-sm"><p>Judging: {project.Judging_Eligible === null ? 'Pending' : project.Judging_Eligible ? 'Eligible' : 'Excluded'}</p><p className="mt-1">Voting: {project.Voting_Eligible === null ? 'Pending' : project.Voting_Eligible ? 'Eligible' : 'Excluded'}</p><p className="mt-1">{(project.Award_Groups || []).join(', ')}</p></td>
               <td className="px-4 py-3 align-top">
                 {project.Is_Active && project.Roster_Review_Required && <button disabled={busy} onClick={() => { setApproving(project); setEditing(null); }} className={`${buttonClass} mb-2`}>Approve inclusion<span className="sr-only"> {project.Project_Number}</span></button>}
                 <div className="flex gap-2"><button disabled={busy} onClick={() => setEditing({ ...project, Presenter_Display_Name: project.Presenter_Display_Name || `${project.Presenter_First_Name} ${project.Presenter_Last_Name}`.trim() })} className={buttonClass}>Edit<span className="sr-only"> {project.Project_Number}</span></button>

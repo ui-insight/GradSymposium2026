@@ -29,6 +29,11 @@ def export_results_to_excel(
         "# Judges",
         "Total Score",
         "Avg Score",
+        "Required Reviews",
+        "Review Target Met",
+        "Award Groups",
+        "Tie",
+        "Provisional",
     ]
 
     def _write_sheet(ws, title: str, results: list[ProjectResult]):
@@ -55,6 +60,14 @@ def export_results_to_excel(
             ws.cell(row=row_idx, column=6, value=r.Judge_Count)
             ws.cell(row=row_idx, column=7, value=r.Total_Score)
             ws.cell(row=row_idx, column=8, value=r.Average_Score)
+            ws.cell(row=row_idx, column=9, value=r.Required_Reviews)
+            ws.cell(row=row_idx, column=10, value=r.Meets_Review_Target)
+            ws.cell(row=row_idx, column=11, value=", ".join(r.Award_Groups))
+            ws.cell(row=row_idx, column=12, value=r.Tied)
+            ws.cell(row=row_idx, column=13, value=r.Provisional)
+            # User-authored names, titles and group names are literal text.
+            for text_column in (2, 3, 4, 5, 11):
+                ws.cell(row=row_idx, column=text_column).data_type = "s"
 
         # Auto-width columns
         for col in range(1, len(columns) + 1):

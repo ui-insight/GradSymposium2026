@@ -25,6 +25,9 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
         ),
         ("Project", "Presenter_Display_Name", "VARCHAR(300)"),
         ("Project", "Institution", "VARCHAR(200)"),
+        ("Project", "Judging_Eligible", "BOOLEAN"),
+        ("Project", "Voting_Eligible", "BOOLEAN"),
+        ("Project", "Award_Groups", "JSON"),
         ("Project", "Is_Published", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
         ("Project", "Source_Submission_Key", "VARCHAR(128)"),
         ("Project", "Roster_Review", "JSON"),
@@ -35,6 +38,15 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
         ),
     ):
         _ensure_column(sync_conn, inspector, table, name, f'"{name}" {definition}')
+
+    if inspector.has_table("Rubric"):
+        _ensure_column(
+            sync_conn,
+            inspector,
+            "Rubric",
+            "Is_Locked",
+            f'"Is_Locked" BOOLEAN NOT NULL DEFAULT {default_false}',
+        )
 
     # create_all does not add indexes to an existing table.
     from app.models.project import Project

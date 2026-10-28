@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { conferenceDates, fetchPosterDirectory } from '../../api/publicPosters';
+import type { PublicEvent } from '../../types';
 import { apiFetch } from '../../api/client';
 import { useAuth } from '../../components/auth/useAuth';
 
 export function JudgeLoginPage() {
+  const [event, setEvent] = useState<PublicEvent | null>(null);
+  useEffect(() => { const controller = new AbortController(); fetchPosterDirectory(controller.signal).then(data => setEvent(data.event)).catch(() => {}); return () => controller.abort(); }, []);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,6 +69,7 @@ export function JudgeLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
+              aria-label="Judge access code"
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="ABC123"
@@ -84,7 +89,7 @@ export function JudgeLoginPage() {
             </div>
 
             <p className="mt-6 text-xs text-[#d4c9b6]">
-              March 13, 2026 — Bruce Pitman Center
+              {event ? `${event.Event_Name} · ${conferenceDates(event)}${event.Location ? ` · ${event.Location}` : ''}` : 'University of Idaho conference presentations'}
             </p>
           </div>
         </div>
