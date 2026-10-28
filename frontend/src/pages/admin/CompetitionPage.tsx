@@ -487,6 +487,7 @@ export function CompetitionPage() {
         <h2 id="conflicts-heading" className="text-xl font-semibold">
           Judge conflicts
         </h2>
+        <Link className="mt-3 inline-flex min-h-11 items-center font-semibold underline" to={`/admin/mentor-review${query}`}>Review PI/lab relationships and upload mentor decisions</Link>
         <p className="mt-2 max-w-[70ch] text-sm leading-6 text-gray-600">
           Record conflicts supplied by organizers. Recording a conflict removes
           the assignment and excludes that judge’s existing scores from totals

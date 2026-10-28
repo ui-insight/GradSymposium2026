@@ -121,17 +121,11 @@ export function JudgesPage() {
                   <td className="px-4 py-3 font-medium">
                     {j.First_Name} {j.Last_Name}
                     <p className="mt-1 text-xs font-normal text-gray-600">{j.Name_Confirmed_At ? 'Name confirmed by judge' : 'Awaiting name confirmation'}</p>
+                    <Link className="inline-flex min-h-11 items-center text-sm font-semibold underline" to={`/admin/mentor-review?event_id=${j.Event_ID}&judge_id=${j.Judge_ID}`}>Review mentor relationships</Link>
                     {j.Conflict_Review_Required && (
                       <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-normal text-amber-950">
                         <p className="font-semibold">Name changed. Recheck mentor conflicts.</p>
                         {j.Previous_Name && <p className="mt-1">Previously: {j.Previous_Name}</p>}
-                        <Link className="mt-2 inline-flex min-h-11 items-center font-semibold underline" to={`/admin/competition?event_id=${j.Event_ID}`}>Review conflicts</Link>
-                        <button className="mt-2 min-h-11 rounded-lg border border-amber-700 px-3 py-2" onClick={async () => {
-                          try {
-                            await apiFetch(`/judges/${j.Judge_ID}`, { method: 'PATCH', body: JSON.stringify({ Conflict_Review_Required: false, Reviewed_Name: `${j.First_Name} ${j.Last_Name}` }) });
-                            await loadData();
-                          } catch (err) { setError(err instanceof Error ? err.message : 'Unable to mark conflicts reviewed.'); }
-                        }}>Mark conflicts reviewed</button>
                       </div>
                     )}
                   </td>
