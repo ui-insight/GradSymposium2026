@@ -17,6 +17,16 @@ from app.services.roster_review import final_roster_ready
 router = APIRouter(prefix="/public", tags=["public posters"])
 
 
+@router.get("/event", response_model=PublicEvent | None)
+async def public_event(response: Response, db: AsyncSession = Depends(get_db)):
+    """Conference branding must not depend on publishing its private roster."""
+    response.headers["Cache-Control"] = "no-store"
+    events = list(await db.scalars(select(Event).where(Event.Is_Active.is_(True))))
+    if len(events) != 1:
+        return None
+    return PublicEvent.model_validate(events[0])
+
+
 @router.get("/posters", response_model=PublicPosterDirectory)
 async def poster_directory(response: Response, db: AsyncSession = Depends(get_db)):
     response.headers["Cache-Control"] = "no-store"

@@ -1,5 +1,11 @@
 import type { PublicEvent, PublicPosterDirectory } from '../types';
 
+export async function fetchPublicEvent(signal?: AbortSignal): Promise<PublicEvent | null> {
+  const response = await fetch('/api/v1/public/event', { signal, cache: 'no-store' });
+  if (!response.ok) throw new Error('The conference details could not be loaded. Please try again.');
+  return response.json();
+}
+
 export async function fetchPosterDirectory(signal?: AbortSignal): Promise<PublicPosterDirectory> {
   // Public lookup must work independently of expired admin/judge credentials.
   const response = await fetch('/api/v1/public/posters', { signal, cache: 'no-store' });
