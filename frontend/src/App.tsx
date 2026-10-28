@@ -19,6 +19,7 @@ import { VotePage } from './pages/VotePage'
 import { VotingPage } from './pages/admin/VotingPage'
 import { CompetitionPage } from './pages/admin/CompetitionPage'
 import { MentorReviewPage } from './pages/admin/MentorReviewPage'
+import { PosterSessionsPage } from './pages/admin/PosterSessionsPage'
 import { RosterReviewPage } from './pages/admin/RosterReviewPage'
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
         <Route path="competition" element={<CompetitionPage />} />
         <Route path="mentor-review" element={<MentorReviewPage />} />
         <Route path="roster-review" element={<RosterReviewPage />} />
+        <Route path="poster-sessions" element={<PosterSessionsPage />} />
       </Route>
 
       {/* Judge routes */}

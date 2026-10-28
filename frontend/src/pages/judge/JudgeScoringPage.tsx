@@ -1,3 +1,4 @@
+import { PosterLocation } from '../../components/PosterLocation';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
@@ -139,6 +140,7 @@ export function JudgeScoringPage() {
         <h2 className="text-lg font-semibold text-gray-900 sm:text-base">
           {detail.Project_Title}
         </h2>
+        <PosterLocation poster={detail} />
         <p className="text-base text-gray-500 sm:text-sm">
           {detail.Presenter_Display_Name || `${detail.Presenter_First_Name} ${detail.Presenter_Last_Name}`}
           {detail.Department && ` — ${detail.Department}`}

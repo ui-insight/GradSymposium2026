@@ -253,6 +253,9 @@ async def test_public_schema_excludes_private_data_and_other_events(context):
         "Presenter_Display_Name",
         "Institution",
         "Table_Number",
+        "Board_Label",
+        "Poster_Session",
+        "Poster_Session_Time",
     }
     assert "private@example.com" not in str(payload)
     assert "Private advisor" not in str(payload)
@@ -760,6 +763,9 @@ async def test_public_draft_preview_requires_dev_mode_and_preserves_reviews(
         "Presenter_Display_Name",
         "Institution",
         "Table_Number",
+        "Board_Label",
+        "Poster_Session",
+        "Poster_Session_Time",
     }
     assert "example.edu" not in str(payload)
     assert "source_row" not in str(payload)

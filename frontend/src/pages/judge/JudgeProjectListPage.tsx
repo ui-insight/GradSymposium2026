@@ -1,3 +1,4 @@
+import { PosterLocation } from '../../components/PosterLocation';
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { apiFetch } from '../../api/client';
@@ -124,10 +125,9 @@ function ProjectCard({ project: p }: { project: JudgeProject }) {
             {p.Department && ` — ${p.Department}`}
           </p>
         </div>
-        {p.Table_Number && (
-          <span className="ml-2 text-sm text-gray-400 sm:text-xs">{p.Table_Number}</span>
-        )}
+
       </div>
+      <PosterLocation poster={p} />
     </Link>
   );
 }

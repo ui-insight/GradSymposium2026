@@ -20,6 +20,9 @@ class PublicPoster(BaseModel):
     Presenter_Display_Name: str
     Institution: str | None
     Table_Number: str | None
+    Board_Label: str | None = None
+    Poster_Session: str | None = None
+    Poster_Session_Time: str | None = None
 
 
 class PublicPosterDirectory(BaseModel):
