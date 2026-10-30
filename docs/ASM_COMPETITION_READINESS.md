@@ -261,3 +261,67 @@ Production and the historical GPSA event remain separate. Deploy a clean Git
 archive, preserve `.env` and the database volume, and keep source spreadsheets,
 email, private review files and credentials out of the release bundle. Do not run
 the broad rsync deployment script against this working directory.
+
+## October 30 event-day changes
+
+Poster judging can start with faculty/postdocs recruited at the meeting. Create
+one judge account per person in **Judges**, hand out their individual code, then
+use **Assignments** to fill the confirmed review target. A headcount alone does
+not create identities. Repeating distribution fills gaps and preserves existing
+assignments; it does not redistribute already-filled workloads to late judges.
+Use the matrix for ordinary manual changes.
+
+For an in-person conflict, use **Assignments → Reported judge conflict**. Search
+by number/presenter, select the outgoing assigned judge, enter the reason and
+choose a replacement. The server validates and saves the conflict/removal/new
+assignment together. If nobody is available, explicitly record the conflict
+without replacement and follow up on the coverage shortage. Historical scores
+remain stored; conflicted reviews are excluded and future distribution cannot
+restore that pairing. Detailed mentor review is optional under the advanced
+control, rather than a prerequisite to on-site recruitment.
+
+**Attendee voting → Prepare ASM talk ballots** prepares two draft rounds with
+Paul's eight trainee speakers and six main-session short-talk speakers. It
+refuses repeat preparation rather than overwriting organizer corrections. Talk
+candidates have separate identities and never enter poster lookup or rubric
+assignments. Peyton Fox's institution remains blank pending confirmation.
+
+Select each talk round, review/edit its speakers, and set the candidate pool,
+trainee restriction and all voting rules/times. Confirm trainee status through
+**Registrations → Talk voting access**, including every affiliated talk and
+explicit confirmation for a non-speaker when self-voting is forbidden. Existing
+voting codes work across permitted rounds without replacing prior poster ballots.
+Trainee status is denied by default. Staff must verify it; the app cannot infer
+trainee status from a registration reference or a presenter name.
+
+Talk ballots, candidate eligibility, saved choices and closed-round tallies are
+separate for each round. A closed talk tally/export is distinct from poster
+choice and rubric judging. Withdrawals preserve ballot history while excluding
+the candidate from current tallies. Rules and speaker identity freeze at opening;
+withdrawal/reinstatement remains available. No weighting or award decision is
+inferred from rank counts.
+
+Before release, back up the database, run Alembic through
+`20261030_talk_voting`, and rebuild frontend/backend. Startup also applies the
+additive round/voter columns and creates the two talk tables. Existing rounds
+default to the original poster pool and unrestricted audience; existing voters
+receive no trainee privilege. Downgrade refuses to discard configured talk
+state. Rehearse using an isolated synthetic database before production rollout.
+
+Still requires organizer verification: Paul's saved final poster roster/sign-off
+on the intended deployment, actual judge availability and review target, trainee
+voter policy for each talk round, talk choice/edit/self-voting rules, exact voting
+times, and final venue/printed-QR checks. The October 30 email reports roster
+completion but does not independently verify the database or publish its data.
+
+
+Barrie authorized best-judgment talk defaults on October 30 and specifically
+required limiting self-voting. Preparation now proposes one unranked choice,
+no edits, no self-votes, and trainee-only access for both rounds. Proposed windows
+from the local draft program are October 31, 12:20–15:45 for trainee talks and
+November 1, 09:10–17:00 for main-session short talks, in America/Los_Angeles
+(the offset changes from PDT to PST between those dates). The main-session
+window includes all tracks and the final short talk; it closes after the draft
+awards time, so results for this vote must be released afterward or Paul must
+adjust the schedule. Rounds stay draft with organizer confirmation unchecked.
+These are delegated defaults, not recorded approval from Paul.

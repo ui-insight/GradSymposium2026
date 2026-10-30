@@ -1,3 +1,4 @@
+import { QuickConflict } from '../../components/admin/QuickConflict';
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../api/client';
 import { getSelectedEvent } from '../../api/event';
@@ -110,6 +111,7 @@ export function AssignmentsPage() {
       {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       {notice && <p role="status" className="mb-4 border border-gray-300 p-4">{notice}</p>}
       <p className="mb-4 text-sm leading-6">{event?.Event_Name}. Automatic distribution preserves existing assignments, skips pending or excluded presentations, and enforces recorded conflicts. Assignment counts are separate from completed reviews in Competition setup.</p>
+      {event && <QuickConflict eventId={event.Event_ID} judges={judges} projects={projects} assignments={assignmentMap} onSaved={loadData} />}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

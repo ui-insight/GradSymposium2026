@@ -3,7 +3,7 @@
 import random
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,12 @@ from app.models.judge_conflict import JudgeConflict
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.competition import AutoAssignmentCreate
-from app.services.competition import lock_event, validate_assignment
+from app.services.competition import (
+    complete_reviews,
+    lock_event,
+    record_conflict,
+    validate_assignment,
+)
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
@@ -260,3 +265,75 @@ async def delete_assignment(
     await lock_event(db, project.Event_ID)
     await db.delete(assignment)
     await db.commit()
+
+
+class ConflictReplacement(BaseModel):
+    Assignment_ID: int
+    Judge_ID: str
+    Project_ID: str
+    Replacement_Judge_ID: str | None = None
+    Reason: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/report-conflict")
+async def replace_conflicted_assignment(
+    body: ConflictReplacement,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    assignment = await db.get(JudgeAssignment, body.Assignment_ID)
+    if not assignment:
+        raise HTTPException(
+            409, "Assignment changed. Refresh before reporting a conflict."
+        )
+    project = await db.get(Project, assignment.Project_ID)
+    await lock_event(db, project.Event_ID)
+    assignment = await db.get(
+        JudgeAssignment, body.Assignment_ID, populate_existing=True
+    )
+    if not assignment:
+        raise HTTPException(409, "Assignment changed. Refresh and try again.")
+    if assignment.Judge_ID != body.Judge_ID or assignment.Project_ID != body.Project_ID:
+        raise HTTPException(409, "Assignment changed. Refresh and try again.")
+    if not body.Reason.strip():
+        raise HTTPException(422, "Provide the conflict reason")
+    if body.Replacement_Judge_ID:
+        if body.Replacement_Judge_ID == assignment.Judge_ID:
+            raise HTTPException(422, "Choose a different judge")
+        await validate_assignment(db, body.Replacement_Judge_ID, project.Project_ID)
+        existing = await db.scalar(
+            select(JudgeAssignment).where(
+                JudgeAssignment.Judge_ID == body.Replacement_Judge_ID,
+                JudgeAssignment.Project_ID == project.Project_ID,
+            )
+        )
+        if existing:
+            raise HTTPException(
+                409, "Replacement already assigned. Refresh and choose another judge."
+            )
+    await record_conflict(db, assignment.Judge_ID, project.Project_ID, body.Reason)
+    if body.Replacement_Judge_ID:
+        db.add(
+            JudgeAssignment(
+                Judge_ID=body.Replacement_Judge_ID, Project_ID=project.Project_ID
+            )
+        )
+    await db.flush()
+    assignments = list(
+        await db.scalars(
+            select(JudgeAssignment).where(
+                JudgeAssignment.Project_ID == project.Project_ID
+            )
+        )
+    )
+    reviews = await complete_reviews(db, project.Event_ID)
+    rules = await db.get(CompetitionSettings, project.Event_ID)
+    result = {
+        "assigned": len(assignments),
+        "completed_reviews": sum(
+            r["Project_ID"] == project.Project_ID for r in reviews
+        ),
+        "target": rules.Required_Reviews if rules else None,
+    }
+    await db.commit()
+    return result

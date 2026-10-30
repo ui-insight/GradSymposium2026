@@ -1,3 +1,4 @@
+import { TalkCandidates, TalkVoterAccess } from '../../components/admin/TalkVoting';
 import { AttendeeChoiceReport } from '../../components/admin/AttendeeChoiceReport';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -296,6 +297,10 @@ export function VotingPage() {
       </section>
       <section className={sectionClass}>
         <h2 className="text-xl font-semibold">Voting rounds</h2>
+        <button className={`${actionClass} mt-3`} disabled={busy} onClick={() => run(async () => {
+          await apiFetch(`/voting/admin/prepare-talks/${event.Event_ID}`, { method: 'POST' });
+          setNotice('Two draft talk rounds and 14 speakers prepared. Confirm rosters, trainee audience and all rules before opening.');
+        })}>Prepare ASM talk ballots</button>
         <label className="mt-4 block text-sm font-semibold">
           Round
           <select
@@ -349,12 +354,15 @@ export function VotingPage() {
       </section>
       {draft && (
         <>
+          {draft.Candidate_Type === 'talk' && <TalkCandidates key={draft.Round_ID} round={draft} onSaved={() => { loadSummary().catch(e => setError(e.message)); }} />}
           <form
             className={sectionClass}
             onSubmit={(e) => {
               e.preventDefault();
               run(async () => {
                 const rules = {
+                  Candidate_Type: draft.Candidate_Type,
+                  Trainees_Only: draft.Trainees_Only,
                   Round_Name: draft.Round_Name,
                   Min_Choices: draft.Min_Choices,
                   Max_Choices: draft.Max_Choices,
@@ -386,6 +394,8 @@ export function VotingPage() {
               disabled={busy || draft.Status !== 'draft'}
               className="mt-5 grid gap-5 sm:grid-cols-2"
             >
+              <label className="text-sm font-semibold">Candidate pool<select className={fieldClass} value={draft.Candidate_Type} onChange={e => setDraft({ ...draft, Candidate_Type: e.target.value as 'poster' | 'talk' })}><option value="poster">Eligible posters</option><option value="talk">This round's talks</option></select></label>
+              <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.Trainees_Only} onChange={e => setDraft({ ...draft, Trainees_Only: e.target.checked })} />Only organizer-approved trainees may vote</label>
               <label className="text-sm font-semibold sm:col-span-2">
                 Round name
                 <input
@@ -422,7 +432,7 @@ export function VotingPage() {
                   ['Ranked', 'Are choices ranked?'],
                   [
                     'Allow_Self_Votes',
-                    'May presenters vote for their own poster?',
+                    'May presenters vote for their own presentation?',
                   ],
                   ['Allow_Edits', 'May attendees change saved ballots?'],
                 ] as const
@@ -543,7 +553,7 @@ export function VotingPage() {
             </div>
             {summary?.Tallies_Available ? (
               <>
-                {summary.Top_Ten_Report && <AttendeeChoiceReport
+                {draft.Candidate_Type === 'poster' && summary.Top_Ten_Report && <AttendeeChoiceReport
                   report={summary.Top_Ten_Report}
                   busy={busy}
                   download={() => { void run(() => downloadAdmin(
@@ -551,10 +561,10 @@ export function VotingPage() {
                     `attendee-choice-top-ten-${selected}.csv`,
                   )); }}
                 />}
-                <details className="mt-6 border-t border-gray-300 pt-3">
-                <summary className="min-h-11 cursor-pointer py-3 text-lg font-semibold">Review complete tally ({summary.tally.length} posters)</summary>
+                <details open={draft.Candidate_Type === 'talk' ? true : undefined} className="mt-6 border-t border-gray-300 pt-3">
+                <summary className="min-h-11 cursor-pointer py-3 text-lg font-semibold">Review complete tally ({summary.tally.length} presentations)</summary>
                 <p className="mt-2 text-sm text-gray-600">
-                  Includes currently active, eligible posters only. Ranked
+                  Includes currently active, eligible candidates in this round only. Ranked
                   choices show their rank counts without an invented weighting
                   or automatic winner.
                 </p>
@@ -562,7 +572,7 @@ export function VotingPage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr>
-                        {['Poster', 'Presenter', 'Title', 'Votes', 'Rank counts'].map(
+                        {[draft.Candidate_Type === 'talk' ? 'Talk' : 'Poster', 'Presenter', 'Title', 'Votes', 'Rank counts'].map(
                           (label) => (
                             <th
                               className="border-b border-gray-300 px-3 py-3"
@@ -783,6 +793,7 @@ export function VotingPage() {
                   </button>
                 </div>
               </div>
+              <TalkVoterAccess key={`${voter.Voter_ID}:${voter.Is_Trainee}:${voter.Talk_Affiliation_Confirmed}:${voter.Presenter_Talk_IDs.join()}`} voter={voter} rounds={rounds} onSaved={() => { load().catch(e => setError(e.message)); }} />
               <AffiliationEditor
                 voter={voter}
                 projects={projects}

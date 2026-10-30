@@ -100,7 +100,7 @@ export function VotePage() {
     clock < Date.parse(round.Closes_At),
   );
   const affiliationReady =
-    round?.Allow_Self_Votes === true || session?.Affiliation_Confirmed;
+    round?.Allow_Self_Votes === true || (round?.Candidate_Type === 'talk' ? session?.Talk_Affiliation_Confirmed : session?.Affiliation_Confirmed);
   const canEdit =
     open && ballot !== null && affiliationReady && (!ballot.saved || round?.Allow_Edits === true);
   const validSize =
@@ -320,7 +320,7 @@ export function VotePage() {
                   </h2>
                   <p className="mt-3 text-sm leading-6">
                     {round.Min_Choices != null && round.Max_Choices != null
-                      ? `Choose ${round.Min_Choices === round.Max_Choices ? round.Min_Choices : `${round.Min_Choices}–${round.Max_Choices}`} distinct posters. `
+                      ? `Choose ${round.Min_Choices === round.Max_Choices ? round.Min_Choices : `${round.Min_Choices}–${round.Max_Choices}`} distinct presentations. `
                       : ''}
                     {round.Ranked === true
                       ? 'Rank your choices from first to last. '
@@ -412,7 +412,7 @@ export function VotePage() {
                       })}
                     </ol>
                   ) : (
-                    <p className="mt-3 text-sm">No posters selected yet.</p>
+                    <p className="mt-3 text-sm">No presentations selected yet.</p>
                   )}
                   {canEdit && (
                     <div className="mt-5 border-t border-gray-200 pt-5">
@@ -452,7 +452,7 @@ export function VotePage() {
                 </section>
                 {canEdit && (
                   <section className={sectionClass}>
-                    <h2 className="text-xl font-semibold">Choose posters</h2>
+                    <h2 className="text-xl font-semibold">Choose presentations</h2>
                     <label className="mt-4 block text-sm font-semibold">
                       Search by number, presenter, institution, or title
                       <input
@@ -503,7 +503,7 @@ export function VotePage() {
                               )}
                               {!p.Can_Select && (
                                 <span className="mt-1 block text-sm font-semibold">
-                                  Own poster — excluded by this round’s rules
+                                  Own presentation — excluded by this round’s rules
                                 </span>
                               )}
                             </span>
@@ -511,7 +511,7 @@ export function VotePage() {
                         ))}
                     </div>
                     {!posters.length && (
-                      <p className="mt-4">No eligible posters are available.</p>
+                      <p className="mt-4">No eligible presentations are available.</p>
                     )}
                   </section>
                 )}

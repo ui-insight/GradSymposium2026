@@ -5,6 +5,7 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,7 @@ from app.models.ballot_selection import BallotSelection
 from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.project import Project
+from app.models.talk import TalkBallot, TalkCandidate
 from app.models.user import User
 from app.models.voter import Voter
 from app.models.voting_round import VotingRound
@@ -35,10 +37,10 @@ from app.services.voting import (
     ballot_read,
     check_login_rate,
     code_hash,
-    eligible_posters,
     issue_code,
     lock_round,
     now,
+    round_candidates,
     round_missing,
     round_summary,
     voting_open,
@@ -67,6 +69,10 @@ async def _round_for_voter(db, round_id, voter):
     round_ = await db.get(VotingRound, round_id)
     if not round_ or round_.Event_ID != voter.Event_ID:
         raise HTTPException(404, "Voting round not found for this code")
+    if round_.Trainees_Only and not voter.Is_Trainee:
+        raise HTTPException(
+            403, "This round is restricted to organizer-approved trainees"
+        )
     return round_
 
 
@@ -138,9 +144,12 @@ async def me(voter: Voter = Depends(current_voter), db: AsyncSession = Depends(g
         "Event_Name": event.Event_Name,
         "Is_Rehearsal": bool(rules and rules.Is_Rehearsal),
         "Affiliation_Confirmed": voter.Affiliation_Confirmed,
+        "Talk_Affiliation_Confirmed": voter.Talk_Affiliation_Confirmed,
         "Presenter_Project_IDs": voter.Presenter_Project_IDs,
         "rounds": [
-            VotingRoundRead.model_validate(r).model_dump(mode="json") for r in rounds
+            VotingRoundRead.model_validate(r).model_dump(mode="json")
+            for r in rounds
+            if not r.Trainees_Only or voter.Is_Trainee
         ],
     }
 
@@ -152,7 +161,7 @@ async def posters(
     db: AsyncSession = Depends(get_db),
 ):
     round_ = await _round_for_voter(db, round_id, voter)
-    candidates = await eligible_posters(db, voter.Event_ID)
+    candidates = await round_candidates(db, round_)
     return [
         {
             "Project_ID": p.Project_ID,
@@ -162,7 +171,12 @@ async def posters(
             or f"{p.Presenter_First_Name} {p.Presenter_Last_Name}".strip(),
             "Institution": p.Institution,
             "Can_Select": round_.Allow_Self_Votes is True
-            or p.Project_ID not in voter.Presenter_Project_IDs,
+            or p.Project_ID
+            not in (
+                voter.Presenter_Talk_IDs
+                if round_.Candidate_Type == "talk"
+                else voter.Presenter_Project_IDs
+            ),
         }
         for p in sorted(candidates, key=lambda p: p.Project_Number)
     ]
@@ -204,6 +218,7 @@ async def submit_ballot(
     rules = await db.get(CompetitionSettings, voter.Event_ID)
     if not event.Is_Active and not (rules and rules.Is_Rehearsal and settings.dev_mode):
         raise HTTPException(409, "This event is archived; voting is closed")
+    await _round_for_voter(db, round_id, voter)
     if not voting_open(round_):
         raise HTTPException(409, "Voting is not open for this round")
     ids = body.Project_IDs
@@ -211,24 +226,65 @@ async def submit_ballot(
         set(ids)
     ):
         raise HTTPException(
-            422, "Choose distinct posters within this round's ballot size limits"
+            422, "Choose distinct presentations within this round's ballot size limits"
         )
-    candidates = {p.Project_ID for p in await eligible_posters(db, voter.Event_ID)}
+    candidates = {p.Project_ID for p in await round_candidates(db, round_)}
     if not set(ids) <= candidates:
         raise HTTPException(
-            422, "A selected poster is withdrawn or not eligible in this round"
+            422, "A selected presentation is withdrawn or not eligible in this round"
         )
     if round_.Allow_Self_Votes is not True:
-        if not voter.Affiliation_Confirmed:
+        if not (
+            voter.Talk_Affiliation_Confirmed
+            if round_.Candidate_Type == "talk"
+            else voter.Affiliation_Confirmed
+        ):
             raise HTTPException(
                 409,
-                "Registration staff must confirm your poster affiliation "
+                "Registration staff must confirm your presentation affiliation "
                 "before you vote",
             )
-        if set(ids) & set(voter.Presenter_Project_IDs):
+        if set(ids) & set(
+            voter.Presenter_Talk_IDs
+            if round_.Candidate_Type == "talk"
+            else voter.Presenter_Project_IDs
+        ):
             raise HTTPException(
-                422, "This round does not allow voting for your own poster"
+                422, "This round does not allow voting for your own presentation"
             )
+    if round_.Candidate_Type == "talk":
+        ballot = await db.scalar(
+            select(TalkBallot).where(
+                TalkBallot.Round_ID == round_id, TalkBallot.Voter_ID == voter.Voter_ID
+            )
+        )
+        if ballot:
+            same = (
+                ballot.Candidate_IDs == ids
+                if round_.Ranked
+                else set(ballot.Candidate_IDs) == set(ids)
+            )
+            if same:
+                return await ballot_read(db, round_id, voter.Voter_ID)
+            if not round_.Allow_Edits:
+                raise HTTPException(
+                    409,
+                    "Your ballot is already saved; this round does not allow changes",
+                )
+            ballot.Candidate_IDs = ids
+            ballot.Updated_At = now()
+        else:
+            db.add(
+                TalkBallot(
+                    Round_ID=round_id,
+                    Voter_ID=voter.Voter_ID,
+                    Candidate_IDs=ids,
+                    Submitted_At=now(),
+                    Updated_At=now(),
+                )
+            )
+        await db.commit()
+        return await ballot_read(db, round_id, voter.Voter_ID)
     ballot = await db.scalar(
         select(Ballot).where(
             Ballot.Round_ID == round_id, Ballot.Voter_ID == voter.Voter_ID
@@ -308,8 +364,21 @@ async def update_round(
     count = await db.scalar(
         select(func.count()).select_from(Ballot).where(Ballot.Round_ID == round_id)
     )
-    if round_.Status != "draft" or count:
+    talk_count = await db.scalar(
+        select(func.count())
+        .select_from(TalkBallot)
+        .where(TalkBallot.Round_ID == round_id)
+    )
+    if round_.Status != "draft" or count or talk_count:
         raise HTTPException(409, "Round rules are frozen once voting is opened")
+    if body.Candidate_Type != round_.Candidate_Type and await db.scalar(
+        select(TalkCandidate.Candidate_ID)
+        .where(TalkCandidate.Round_ID == round_id)
+        .limit(1)
+    ):
+        raise HTTPException(
+            409, "A round with talk candidates must remain a talk round"
+        )
     for key, value in body.model_dump().items():
         setattr(round_, key, value)
     await db.commit()
@@ -383,7 +452,14 @@ async def export(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
-        ["Poster", "Presenter", "Title", "Votes", "Rank counts (no weighting applied)"]
+        [
+            "Poster" if round_.Candidate_Type == "poster" else "Talk",
+            "Presenter",
+            "Title",
+            "Votes",
+            "Rank counts (no weighting applied)",
+        ]
+        + (["Round"] if round_.Candidate_Type == "talk" else [])
     )
     for item in state["tally"]:
         # Spreadsheet-safe text, including user-supplied names and titles.
@@ -402,6 +478,7 @@ async def export(
                 item["Votes"],
                 str(item["Rank_Counts"]),
             ]
+            + ([safe(round_.Round_Name)] if round_.Candidate_Type == "talk" else [])
         )
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -623,3 +700,123 @@ async def revoke(
     voter.Is_Active = False
     voter.Credential_Version += 1
     await db.commit()
+
+
+class TalkCandidateWrite(BaseModel):
+    Presenter_Display_Name: str = Field(min_length=1, max_length=300)
+    Institution: str | None = Field(default=None, max_length=200)
+    Project_Title: str = Field(default="", max_length=500)
+    Is_Active: bool = True
+
+
+@router.get("/admin/rounds/{round_id}/talks")
+async def list_talks(
+    round_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    return list(
+        await db.scalars(
+            select(TalkCandidate)
+            .where(TalkCandidate.Round_ID == round_id)
+            .order_by(TalkCandidate.Presenter_Display_Name)
+        )
+    )
+
+
+@router.post("/admin/rounds/{round_id}/talks", status_code=201)
+async def create_talk(
+    round_id: str,
+    body: TalkCandidateWrite,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    round_ = await lock_round(db, round_id)
+    if round_.Candidate_Type != "talk" or round_.Status != "draft":
+        raise HTTPException(409, "Add candidates to a draft talk round")
+    if not body.Presenter_Display_Name.strip():
+        raise HTTPException(422, "Provide the speaker name")
+    candidate = TalkCandidate(Round_ID=round_id, **body.model_dump())
+    db.add(candidate)
+    await db.commit()
+    await db.refresh(candidate)
+    return candidate
+
+
+@router.put("/admin/rounds/{round_id}/talks/{candidate_id}")
+async def update_talk(
+    round_id: str,
+    candidate_id: str,
+    body: TalkCandidateWrite,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    round_ = await lock_round(db, round_id)
+    candidate = await db.get(TalkCandidate, candidate_id)
+    if not candidate or candidate.Round_ID != round_id:
+        raise HTTPException(404, "Candidate not found")
+    if not body.Presenter_Display_Name.strip():
+        raise HTTPException(422, "Provide the speaker name")
+    values = body.model_dump()
+    if round_.Status != "draft" and any(
+        getattr(candidate, key) != value
+        for key, value in values.items()
+        if key != "Is_Active"
+    ):
+        raise HTTPException(
+            409, "Only withdrawal/reinstatement is allowed after opening"
+        )
+    for key, value in values.items():
+        setattr(candidate, key, value)
+    await db.commit()
+    return candidate
+
+
+class TalkVoterUpdate(BaseModel):
+    Is_Trainee: bool
+    Talk_Affiliation_Confirmed: bool
+    Presenter_Talk_IDs: list[str] = Field(max_length=100)
+
+
+@router.put("/admin/voters/{voter_id}/talk-access")
+async def update_talk_access(
+    voter_id: str,
+    body: TalkVoterUpdate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    voter = await db.get(Voter, voter_id)
+    if not voter:
+        raise HTTPException(404, "Voter not found")
+    await lock_event(db, voter.Event_ID)
+    ids = set(
+        await db.scalars(
+            select(TalkCandidate.Candidate_ID)
+            .join(VotingRound, VotingRound.Round_ID == TalkCandidate.Round_ID)
+            .where(
+                VotingRound.Event_ID == voter.Event_ID,
+                TalkCandidate.Candidate_ID.in_(body.Presenter_Talk_IDs),
+            )
+        )
+    )
+    if ids != set(body.Presenter_Talk_IDs) or len(ids) != len(body.Presenter_Talk_IDs):
+        raise HTTPException(422, "Choose distinct talk affiliations from this event")
+    for key, value in body.model_dump().items():
+        setattr(voter, key, value)
+    await db.commit()
+    return {"saved": True}
+
+
+@router.post("/admin/prepare-talks/{event_id}", status_code=201)
+async def prepare_asm_talks(
+    event_id: str,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    from app.services.talk_setup import prepare_talks
+
+    if not await db.get(Event, event_id):
+        raise HTTPException(404, "Event not found")
+    await lock_event(db, event_id)
+    await prepare_talks(db, event_id)
+    return {"created_rounds": 2, "created_candidates": 14, "status": "draft"}
