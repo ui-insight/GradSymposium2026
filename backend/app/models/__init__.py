@@ -17,6 +17,7 @@ from app.models.rubric import Rubric  # noqa: F401
 from app.models.rubric_criterion import RubricCriterion  # noqa: F401
 from app.models.score import Score  # noqa: F401
 from app.models.score_override import ScoreOverride  # noqa: F401
+from app.models.talk import TalkBallot, TalkCandidate  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.voter import Voter  # noqa: F401
 from app.models.voting_round import VotingRound  # noqa: F401

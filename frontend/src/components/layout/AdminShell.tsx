@@ -7,7 +7,6 @@ const navItems = [
   { path: '/admin/roster-review', label: 'Final roster review' },
   { path: '/admin/poster-sessions', label: 'Boards and sessions' },
   { path: '/admin/judges', label: 'Judges' },
-  { path: '/admin/mentor-review', label: 'Mentor conflicts' },
   { path: '/admin/assignments', label: 'Assignments' },
   { path: '/admin/rubrics', label: 'Rubrics' },
   { path: '/admin/results', label: 'Results' },

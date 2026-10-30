@@ -17,6 +17,15 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
 
     default_false = "FALSE" if dialect == "postgresql" else "0"
     for table, name, definition in (
+        ("Voting_Round", "Candidate_Type", "VARCHAR(20) NOT NULL DEFAULT 'poster'"),
+        ("Voting_Round", "Trainees_Only", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
+        ("Voter", "Is_Trainee", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
+        (
+            "Voter",
+            "Talk_Affiliation_Confirmed",
+            f"BOOLEAN NOT NULL DEFAULT {default_false}",
+        ),
+        ("Voter", "Presenter_Talk_IDs", "JSON NOT NULL DEFAULT '[]'"),
         ("Event", "Event_End_Date", "DATE"),
         (
             "Event",
@@ -37,6 +46,8 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
             f"BOOLEAN NOT NULL DEFAULT {default_false}",
         ),
     ):
+        if not inspector.has_table(table):
+            continue
         _ensure_column(sync_conn, inspector, table, name, f'"{name}" {definition}')
 
     if inspector.has_table("Rubric"):

@@ -1,6 +1,7 @@
 """Separate voter credentials and explicit, organizer-confirmed ballot rules."""
 
 import datetime
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -12,6 +13,8 @@ from pydantic import (
 
 
 class VotingRoundUpdate(BaseModel):
+    Candidate_Type: Literal["poster", "talk"] = "poster"
+    Trainees_Only: bool = False
     Round_Name: str = Field(min_length=1, max_length=200)
     Min_Choices: int | None = Field(default=None, ge=1, le=100)
     Max_Choices: int | None = Field(default=None, ge=1, le=100)
@@ -49,6 +52,8 @@ class VotingRoundCreate(VotingRoundUpdate):
 class VotingRoundRead(BaseModel):
     Round_ID: str
     Event_ID: str
+    Candidate_Type: Literal["poster", "talk"] = "poster"
+    Trainees_Only: bool = False
     Round_Name: str
     Status: str
     Min_Choices: int | None
@@ -90,6 +95,9 @@ class VoterBulkCreate(BaseModel):
 
 
 class VoterRead(BaseModel):
+    Is_Trainee: bool = False
+    Talk_Affiliation_Confirmed: bool = False
+    Presenter_Talk_IDs: list[str] = Field(default_factory=list)
     Voter_ID: str
     Event_ID: str
     Registration_Reference: str

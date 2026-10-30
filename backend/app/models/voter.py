@@ -23,6 +23,15 @@ class Voter(Base):
     Is_Active: Mapped[bool] = mapped_column(
         sa.Boolean, default=True, server_default=sa.true()
     )
+    Is_Trainee: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
+    Talk_Affiliation_Confirmed: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
+    Presenter_Talk_IDs: Mapped[list] = mapped_column(
+        sa.JSON, default=list, server_default="[]"
+    )
     Affiliation_Confirmed: Mapped[bool] = mapped_column(
         sa.Boolean, default=False, server_default=sa.false()
     )

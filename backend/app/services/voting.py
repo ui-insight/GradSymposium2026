@@ -16,6 +16,7 @@ from app.models.ballot_selection import BallotSelection
 from app.models.competition import CompetitionSettings
 from app.models.event import Event
 from app.models.project import Project
+from app.models.talk import TalkBallot, TalkCandidate
 from app.models.voting_round import VotingRound
 from app.services.attendee_report import attendee_choice_report
 
@@ -83,6 +84,19 @@ async def eligible_posters(db, event_id):
     )
 
 
+async def round_candidates(db, round_):
+    if round_.Candidate_Type == "talk":
+        return list(
+            await db.scalars(
+                select(TalkCandidate).where(
+                    TalkCandidate.Round_ID == round_.Round_ID,
+                    TalkCandidate.Is_Active.is_(True),
+                )
+            )
+        )
+    return await eligible_posters(db, round_.Event_ID)
+
+
 async def round_missing(db, round_) -> list[str]:
     missing = []
     event = await db.get(Event, round_.Event_ID)
@@ -125,13 +139,15 @@ async def round_missing(db, round_) -> list[str]:
             )
         )
     )
+    if round_.Candidate_Type == "talk":
+        active = []
     pending = sum(p.Voting_Eligible is None for p in active)
     unresolved = sum(p.Roster_Review_Required for p in active)
     if pending:
         missing.append(f"Voting eligibility for {pending} presentations")
     if unresolved:
         missing.append(f"Roster decisions for {unresolved} active submissions")
-    candidates = await eligible_posters(db, round_.Event_ID)
+    candidates = await round_candidates(db, round_)
     if not candidates:
         missing.append("Eligible posters")
     if round_.Min_Choices and round_.Min_Choices > len(candidates):
@@ -150,6 +166,19 @@ def voting_open(round_):
 
 
 async def ballot_read(db, round_id, voter_id):
+    round_ = await db.get(VotingRound, round_id)
+    if round_.Candidate_Type == "talk":
+        ballot = await db.scalar(
+            select(TalkBallot).where(
+                TalkBallot.Round_ID == round_id, TalkBallot.Voter_ID == voter_id
+            )
+        )
+        return {
+            "saved": bool(ballot),
+            "Project_IDs": ballot.Candidate_IDs if ballot else [],
+            "Submitted_At": utc(ballot.Submitted_At) if ballot else None,
+            "Updated_At": utc(ballot.Updated_At) if ballot else None,
+        }
     ballot = await db.scalar(
         select(Ballot).where(Ballot.Round_ID == round_id, Ballot.Voter_ID == voter_id)
     )
@@ -176,8 +205,11 @@ async def ballot_read(db, round_id, voter_id):
 
 
 async def round_summary(db, round_):
+    ballot_model = TalkBallot if round_.Candidate_Type == "talk" else Ballot
     ballots = list(
-        await db.scalars(select(Ballot).where(Ballot.Round_ID == round_.Round_ID))
+        await db.scalars(
+            select(ballot_model).where(ballot_model.Round_ID == round_.Round_ID)
+        )
     )
     # Counts and rank distributions are separate from a winner decision. No
     # unconfirmed weights are invented for ranked ballots.
@@ -186,9 +218,7 @@ async def round_summary(db, round_):
     )
     tally = []
     if can_tally:
-        eligible = {
-            p.Project_ID: p for p in await eligible_posters(db, round_.Event_ID)
-        }
+        eligible = {p.Project_ID: p for p in await round_candidates(db, round_)}
         selections = (
             await db.execute(
                 select(BallotSelection.Project_ID, BallotSelection.Rank)
@@ -196,6 +226,12 @@ async def round_summary(db, round_):
                 .where(Ballot.Round_ID == round_.Round_ID)
             )
         ).all()
+        if round_.Candidate_Type == "talk":
+            selections = [
+                (pid, index if round_.Ranked else None)
+                for ballot in ballots
+                for index, pid in enumerate(ballot.Candidate_IDs, 1)
+            ]
         for project_id, project in eligible.items():
             ranks = [
                 rank
@@ -219,6 +255,7 @@ async def round_summary(db, round_):
         tally.sort(key=lambda p: (-p["Votes"], p["Project_Number"]))
     return {
         "Round_ID": round_.Round_ID,
+        "Round_Name": round_.Round_Name,
         "Ballots_Submitted": len(ballots),
         "Voting_Open": voting_open(round_),
         "Tallies_Available": bool(can_tally),
