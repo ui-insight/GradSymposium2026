@@ -1,7 +1,12 @@
 """Separate voter login/ballots and organizer management of voting entitlements."""
 
 import csv
+import datetime
+import hashlib
 import io
+import re
+import secrets
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -69,6 +74,8 @@ async def _round_for_voter(db, round_id, voter):
     round_ = await db.get(VotingRound, round_id)
     if not round_ or round_.Event_ID != voter.Event_ID:
         raise HTTPException(404, "Voting round not found for this code")
+    if voter.Browser_Only and not round_.Public_Browser:
+        raise HTTPException(403, "This round requires an organizer-issued code")
     if round_.Trainees_Only and not voter.Is_Trainee:
         raise HTTPException(
             403, "This round is restricted to organizer-approved trainees"
@@ -145,11 +152,13 @@ async def me(voter: Voter = Depends(current_voter), db: AsyncSession = Depends(g
         "Is_Rehearsal": bool(rules and rules.Is_Rehearsal),
         "Affiliation_Confirmed": voter.Affiliation_Confirmed,
         "Talk_Affiliation_Confirmed": voter.Talk_Affiliation_Confirmed,
+        "Browser_Only": voter.Browser_Only,
         "Presenter_Project_IDs": voter.Presenter_Project_IDs,
         "rounds": [
             VotingRoundRead.model_validate(r).model_dump(mode="json")
             for r in rounds
-            if not r.Trainees_Only or voter.Is_Trainee
+            if (not r.Trainees_Only or voter.Is_Trainee)
+            and (not voter.Browser_Only or r.Public_Browser)
         ],
     }
 
@@ -820,3 +829,68 @@ async def prepare_asm_talks(
     await lock_event(db, event_id)
     await prepare_talks(db, event_id)
     return {"created_rounds": 2, "created_candidates": 14, "status": "draft"}
+
+
+@router.post("/browser-session")
+async def browser_session(
+    request: Request, response: Response, db: AsyncSession = Depends(get_db)
+):
+    response.headers["Cache-Control"] = "no-store"
+    origin = request.headers.get("origin")
+    if origin and urlsplit(origin).netloc != request.headers.get("host"):
+        raise HTTPException(403, "Open voting from this site's voting page")
+    events = list(await db.scalars(select(Event).where(Event.Is_Active.is_(True))))
+    if len(events) != 1:
+        raise HTTPException(409, "No active conference")
+    event = events[0]
+    if not await db.scalar(
+        select(VotingRound.Round_ID)
+        .where(
+            VotingRound.Event_ID == event.Event_ID, VotingRound.Public_Browser.is_(True)
+        )
+        .limit(1)
+    ):
+        raise HTTPException(409, "Public browser voting is not enabled")
+    secret = request.cookies.get("gpsa_browser_v1", "")
+    check_login_rate(
+        request.client.host if request.client else "unknown",
+        secrets.token_hex(16),
+        ip_limit=3000,
+    )
+    if not re.fullmatch(r"[0-9a-f]{64}", secret):
+        response.set_cookie(
+            "gpsa_browser_v1",
+            secrets.token_hex(32),
+            max_age=60 * 60 * 24 * 365,
+            httponly=True,
+            secure=not settings.dev_mode,
+            samesite="lax",
+            path="/api/v1/voting",
+        )
+        return {"cookie_ready": False}
+    await lock_event(db, event.Event_ID)
+    reference = "browser:" + hashlib.sha256(secret.encode()).hexdigest()
+    voter = await db.scalar(
+        select(Voter).where(
+            Voter.Event_ID == event.Event_ID, Voter.Registration_Reference == reference
+        )
+    )
+    if not voter:
+        voter = Voter(
+            Event_ID=event.Event_ID,
+            Registration_Reference=reference,
+            Code_Hash=hashlib.sha256(secrets.token_bytes(32)).hexdigest(),
+            Browser_Only=True,
+        )
+        db.add(voter)
+        await db.flush()
+    if not voter.Browser_Only or not voter.Is_Active:
+        raise HTTPException(403, "This browser's voting access is inactive")
+    token = create_access_token(
+        voter.Voter_ID,
+        "voter",
+        expires_delta=datetime.timedelta(days=7),
+        extra_claims={"credential_version": voter.Credential_Version},
+    )
+    await db.commit()
+    return {"cookie_ready": True, "access_token": token}

@@ -1,5 +1,47 @@
 # ASM competition readiness
 
+## Current event-day workflow (October 30)
+
+Paul confirmed the 106 accepted posters and odd numbers in Session I, even
+numbers in Session II. Publish through the existing sign-off and session APIs;
+record Barrie as the acting operator and Paul’s confirmation as the source.
+Re-sign after applying the session convention because it changes the roster
+context. Session I is October 31 3:45–5 p.m.; Session II is 5–6:15 p.m. local.
+
+**Administration → Judge QR check-in** issues one personal invitation at a time.
+Generate the QR, show or print it, wait for the judge to enter their name, then
+choose **Next judge**. Issuance is retry-safe. Unnamed invitations remain inactive
+and cannot score. Activated judges receive up to 12 initial posters by default,
+spread across odd/even sessions where possible and respecting coverage targets
+and recorded conflicts. The initial allocation is configurable before issuing
+each QR. Existing assignments/scores are not reshuffled. Use Assignments to
+fill remaining coverage and Competition setup to open judging when ready.
+
+The issued/activated list can redisplay any personal QR and its six-character
+recovery code. Rescanning preserves the same account and work; it cannot rename
+an already activated judge. Personal invitation links expire seven days after
+issuance; manual access codes remain available. Keep judge QRs private.
+
+All three people’s-choice rounds now use **open public browser voting**. The
+common /vote QR requires no name, individual code, trainee check or affiliation
+review. Self-voting is allowed by Paul’s explicit simplification. Each browser
+gets one final ballot per round; server uniqueness and no-edit rules enforce
+that identity’s limit. A persistent HttpOnly cookie restores the same voter even
+when the page is reloaded or the local access token is lost. The cookie handshake
+must succeed before voting. Separate browsers/devices, private browsing or
+clearing site data can bypass the limit; this is a convenience deterrent, not
+verified one-person-one-vote. Shared venue IP addresses are not person identities.
+Code-restricted historical rounds remain separate and inaccessible to a public
+browser identity. Existing poster and talk windows are retained; opening a round
+with a future opening time schedules it rather than accepting early ballots.
+
+This supersedes the earlier trainee-only and no-self-voting handout guidance
+below. Preserve personal-code and affiliation controls for historical/restricted
+rounds. Back up before deploying migration 20261030_qr_checkin. It adds an invite
+table and false-by-default public/browser flags; downgrade refuses populated
+state. Never run synthetic ballots or activate fictional judges in production.
+
+
 Updated October 28, 2026. Dev: https://gpsa-dev.insight.uidaho.edu.
 
 ## Ready to review
