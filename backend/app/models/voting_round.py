@@ -20,6 +20,9 @@ class VotingRound(Base):
     Status: Mapped[str] = mapped_column(
         sa.String(20), default="draft", server_default="draft"
     )
+    Public_Browser: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
     Candidate_Type: Mapped[str] = mapped_column(
         sa.String(20), default="poster", server_default="poster"
     )

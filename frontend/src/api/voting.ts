@@ -39,3 +39,17 @@ export async function downloadAdmin(path: string, filename: string) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// Share the initial handshake across React StrictMode's repeated mount effects.
+let browserStart: Promise<void> | null = null;
+export function startBrowserVoting(): Promise<void> {
+  if (!browserStart) {
+    browserStart = (async () => {
+      let data = await voterFetch<{ cookie_ready: boolean; access_token?: string }>('/browser-session', { method: 'POST' });
+      if (!data.cookie_ready) data = await voterFetch<{ cookie_ready: boolean; access_token?: string }>('/browser-session', { method: 'POST' });
+      if (!data.cookie_ready || !data.access_token) throw new Error('Enable cookies for this site to vote. They keep your saved ballot when you return.');
+      storage.setItem('voter_access_token', data.access_token);
+    })().finally(() => { browserStart = null; });
+  }
+  return browserStart;
+}

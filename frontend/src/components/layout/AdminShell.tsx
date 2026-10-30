@@ -6,6 +6,7 @@ const navItems = [
   { path: '/admin/projects', label: 'Projects' },
   { path: '/admin/roster-review', label: 'Final roster review' },
   { path: '/admin/poster-sessions', label: 'Boards and sessions' },
+  { path: '/admin/judge-checkin', label: 'Judge QR check-in' },
   { path: '/admin/judges', label: 'Judges' },
   { path: '/admin/assignments', label: 'Assignments' },
   { path: '/admin/rubrics', label: 'Rubrics' },

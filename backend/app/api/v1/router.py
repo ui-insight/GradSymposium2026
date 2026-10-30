@@ -6,6 +6,7 @@ from app.api.v1.assignments import router as assignments_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.competition import router as competition_router
 from app.api.v1.events import router as events_router
+from app.api.v1.judge_checkin import router as judge_checkin_router
 from app.api.v1.judge_portal import router as judge_router
 from app.api.v1.judges import router as judges_router
 from app.api.v1.mentor_review import router as mentor_review_router
@@ -20,6 +21,8 @@ from app.api.v1.voting import router as voting_router
 
 api_router = APIRouter(prefix="/api/v1")
 
+
+api_router.include_router(judge_checkin_router)
 api_router.include_router(auth_router)
 api_router.include_router(events_router)
 api_router.include_router(projects_router)

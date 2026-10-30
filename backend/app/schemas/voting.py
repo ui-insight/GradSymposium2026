@@ -13,6 +13,7 @@ from pydantic import (
 
 
 class VotingRoundUpdate(BaseModel):
+    Public_Browser: bool = False
     Candidate_Type: Literal["poster", "talk"] = "poster"
     Trainees_Only: bool = False
     Round_Name: str = Field(min_length=1, max_length=200)
@@ -34,6 +35,15 @@ class VotingRoundUpdate(BaseModel):
 
     @model_validator(mode="after")
     def coherent_rules(self):
+        if self.Public_Browser and (
+            self.Trainees_Only
+            or self.Allow_Self_Votes is not True
+            or self.Allow_Edits is not False
+        ):
+            raise ValueError(
+                "Open browser voting requires all attendees, "
+                "self-votes allowed and no ballot edits"
+            )
         if (
             self.Min_Choices
             and self.Max_Choices
@@ -52,6 +62,7 @@ class VotingRoundCreate(VotingRoundUpdate):
 class VotingRoundRead(BaseModel):
     Round_ID: str
     Event_ID: str
+    Public_Browser: bool = False
     Candidate_Type: Literal["poster", "talk"] = "poster"
     Trainees_Only: bool = False
     Round_Name: str
@@ -95,6 +106,7 @@ class VoterBulkCreate(BaseModel):
 
 
 class VoterRead(BaseModel):
+    Browser_Only: bool = False
     Is_Trainee: bool = False
     Talk_Affiliation_Confirmed: bool = False
     Presenter_Talk_IDs: list[str] = Field(default_factory=list)

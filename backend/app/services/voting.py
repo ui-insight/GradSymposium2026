@@ -42,9 +42,9 @@ def issue_code() -> tuple[str, str]:
     return code, code_hash(code)
 
 
-def check_login_rate(ip: str, digest: str):
+def check_login_rate(ip: str, digest: str, ip_limit=300, code_limit=8):
     moment = time.monotonic()
-    for key, limit in (("ip:" + ip, 300), ("code:" + digest, 8)):
+    for key, limit in (("ip:" + ip, ip_limit), ("code:" + digest, code_limit)):
         attempts = _attempts.setdefault(key, deque())
         while attempts and attempts[0] < moment - 600:
             attempts.popleft()
@@ -103,6 +103,12 @@ async def round_missing(db, round_) -> list[str]:
     rules = await db.get(CompetitionSettings, round_.Event_ID)
     if not event.Is_Active and not (rules and rules.Is_Rehearsal and settings.dev_mode):
         missing.append("An active event (or synthetic dev rehearsal)")
+    if round_.Public_Browser and (
+        round_.Trainees_Only
+        or round_.Allow_Self_Votes is not True
+        or round_.Allow_Edits is not False
+    ):
+        missing.append("Open voting: all attendees, self-votes allowed, no edits")
     if not round_.Rules_Confirmed:
         missing.append("Organizer confirmation of voting rules")
     for field, label in (

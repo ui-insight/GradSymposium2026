@@ -45,6 +45,7 @@ export interface JudgeConflict {
 }
 
 export interface VotingRound {
+  Public_Browser: boolean;
   Candidate_Type: 'poster' | 'talk';
   Trainees_Only: boolean;
   Round_ID: string;
@@ -62,6 +63,7 @@ export interface VotingRound {
 }
 
 export interface Voter {
+  Browser_Only: boolean;
   Is_Trainee: boolean;
   Talk_Affiliation_Confirmed: boolean;
   Presenter_Talk_IDs: string[];
@@ -125,6 +127,7 @@ export interface VotingPoster {
 }
 
 export interface VoterSession {
+  Browser_Only: boolean;
   Talk_Affiliation_Confirmed: boolean;
   Event_Name: string;
   Is_Rehearsal: boolean;

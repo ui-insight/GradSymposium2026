@@ -1,3 +1,5 @@
+import { JudgeCheckinPage as AdminJudgeCheckinPage } from './pages/admin/JudgeCheckinPage'
+import { JudgeCheckinPage } from './pages/judge/JudgeCheckinPage'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminShell } from './components/layout/AdminShell'
 import { JudgeShell } from './components/layout/JudgeShell'
@@ -25,6 +27,7 @@ import { RosterReviewPage } from './pages/admin/RosterReviewPage'
 function App() {
   return (
     <Routes>
+      <Route path="/judge/check-in" element={<JudgeCheckinPage />} />
       <Route path="/vote" element={<VotePage />} />
       <Route path="/posters" element={<PosterLookupPage />} />
       {/* Admin routes */}
@@ -40,6 +43,7 @@ function App() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="projects" element={<ProjectsPage />} />
+        <Route path="judge-checkin" element={<AdminJudgeCheckinPage />} />
         <Route path="judges" element={<JudgesPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="rubrics" element={<RubricsPage />} />

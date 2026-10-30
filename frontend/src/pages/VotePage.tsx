@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { voterFetch } from '../api/voting';
+import { voterFetch, startBrowserVoting } from '../api/voting';
 import { storage } from '../utils/storage';
 import { actionClass, fieldClass, sectionClass } from '../utils/competitionUi';
 import type {
@@ -28,6 +28,7 @@ export function VotePage() {
   const [reviewing, setReviewing] = useState(false);
   const [clock, setClock] = useState(Date.now());
   const [loading, setLoading] = useState(true);
+  const [publicMode, setPublicMode] = useState(false);
 
   const loadSession = useCallback(async () => {
     const next = await voterFetch<VoterSession>('/me');
@@ -40,9 +41,17 @@ export function VotePage() {
     );
   }, []);
   useEffect(() => {
-    const start = storage.getItem('voter_access_token')
-      ? loadSession()
-      : voterFetch<VotingRound[]>('/rounds').then(setRounds);
+    const start = voterFetch<VotingRound[]>('/rounds').then(async available => {
+      setRounds(available);
+      const openAccess = available.some(r => r.Public_Browser);
+      setPublicMode(openAccess);
+      if (openAccess) {
+        await startBrowserVoting();
+        await loadSession();
+      } else if (storage.getItem('voter_access_token')) {
+        await loadSession();
+      }
+    });
     start
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -187,7 +196,7 @@ export function VotePage() {
         <h1 className="text-3xl font-bold">Attendee voting</h1>
         <p className="mt-3 text-base leading-7">
           {session?.Event_Name ||
-            'Use the voting code provided by registration staff.'}
+            (publicMode ? 'No name or voting code needed.' : 'Use the voting code provided by registration staff.')}
         </p>
         {session?.Is_Rehearsal && (
           <p className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm leading-6">
@@ -216,9 +225,10 @@ export function VotePage() {
             {notice}
           </p>
         )}
+        {session?.Browser_Only && <p className="mt-4 text-sm leading-6">One final ballot per competition is saved for this browser. Reopening this page restores it. Please vote once per person and keep using this browser; clearing site data, private browsing or another device can bypass this limit.</p>}
         {!session ? (
           <>
-            <form
+            {publicMode ? (!loading && <section className={sectionClass}><p>Open voting requires cookies to remember your ballot.</p><button className={`${actionClass} mt-3`} onClick={() => window.location.reload()}>Try again</button></section>) : !loading && <form
               className={sectionClass}
               onSubmit={(e) => {
                 e.preventDefault();
@@ -244,7 +254,7 @@ export function VotePage() {
               >
                 {busy ? 'Checking code…' : 'Continue to ballot'}
               </button>
-            </form>
+            </form>}
             <section className={sectionClass}>
               <h2 className="text-lg font-semibold">Voting rounds</h2>
               {rounds.length ? (
@@ -271,7 +281,7 @@ export function VotePage() {
           </>
         ) : (
           <>
-            <button
+            {!session.Browser_Only && <button
               className={`${actionClass} mt-4`}
               onClick={() => {
                 storage.removeItem('voter_access_token');
@@ -287,7 +297,7 @@ export function VotePage() {
               }}
             >
               Use a different voting code
-            </button>
+            </button>}
             {rounds.length === 0 ? (
               <p className="mt-6">
                 No voting rounds have been prepared for this event.

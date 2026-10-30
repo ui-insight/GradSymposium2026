@@ -21,3 +21,5 @@ from app.models.talk import TalkBallot, TalkCandidate  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.voter import Voter  # noqa: F401
 from app.models.voting_round import VotingRound  # noqa: F401
+
+from app.models.judge_invite import JudgeInvite  # noqa: F401

@@ -252,6 +252,7 @@ export function VotingPage() {
     <div>
       <h1 className="text-2xl font-bold">Attendee voting</h1>
       <p className="mt-2 text-sm text-gray-600">{event.Event_Name}</p>
+      <p className="mt-2 text-sm">{voters.filter(voter => voter.Browser_Only).length} browser voting identities. Anonymous counts reflect browsers, not verified people.</p>
       <Link className={`${actionClass} mt-4`} to={`/admin/competition${query}`}>
         Competition setup and event selection
       </Link>
@@ -286,7 +287,7 @@ export function VotingPage() {
               {window.location.origin}/vote
             </a>
             <p className="mt-3 max-w-xl text-sm leading-6">
-              Each eligible registration receives one code. Replacing a lost
+              For open public rounds, attendees scan this QR and vote without a code. Browser cookies restore their ballot. Other rounds require individual registration codes. Replacing a lost
               code preserves its ballots and invalidates the old code and
               sessions. Registration references must uniquely identify people;
               eligibility and distribution policy still need organizer
@@ -361,6 +362,7 @@ export function VotingPage() {
               e.preventDefault();
               run(async () => {
                 const rules = {
+                  Public_Browser: draft.Public_Browser,
                   Candidate_Type: draft.Candidate_Type,
                   Trainees_Only: draft.Trainees_Only,
                   Round_Name: draft.Round_Name,
@@ -394,6 +396,7 @@ export function VotingPage() {
               disabled={busy || draft.Status !== 'draft'}
               className="mt-5 grid gap-5 sm:grid-cols-2"
             >
+              <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.Public_Browser} onChange={e => setDraft({ ...draft, Public_Browser: e.target.checked, ...(e.target.checked ? { Trainees_Only: false, Allow_Self_Votes: true, Allow_Edits: false } : {}) })} />Open public QR voting (one ballot per browser)</label>
               <label className="text-sm font-semibold">Candidate pool<select className={fieldClass} value={draft.Candidate_Type} onChange={e => setDraft({ ...draft, Candidate_Type: e.target.value as 'poster' | 'talk' })}><option value="poster">Eligible posters</option><option value="talk">This round's talks</option></select></label>
               <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.Trainees_Only} onChange={e => setDraft({ ...draft, Trainees_Only: e.target.checked })} />Only organizer-approved trainees may vote</label>
               <label className="text-sm font-semibold sm:col-span-2">
@@ -720,15 +723,15 @@ export function VotingPage() {
       </section>
       <section className={sectionClass}>
         <h2 className="text-xl font-semibold">
-          Registrations ({voters.length})
+          Staff-issued registrations ({voters.filter(voter => !voter.Browser_Only).length})
         </h2>
-        {voters.length === 0 && (
+        {voters.filter(voter => !voter.Browser_Only).length === 0 && (
           <p className="mt-3 text-sm">
             No voting entitlements have been issued.
           </p>
         )}
         <ul className="mt-4 divide-y divide-gray-300">
-          {voters.map((voter) => (
+          {voters.filter(voter => !voter.Browser_Only).map((voter) => (
             <li className="py-5" key={voter.Voter_ID}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

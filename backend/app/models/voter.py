@@ -23,6 +23,9 @@ class Voter(Base):
     Is_Active: Mapped[bool] = mapped_column(
         sa.Boolean, default=True, server_default=sa.true()
     )
+    Browser_Only: Mapped[bool] = mapped_column(
+        sa.Boolean, default=False, server_default=sa.false()
+    )
     Is_Trainee: Mapped[bool] = mapped_column(
         sa.Boolean, default=False, server_default=sa.false()
     )

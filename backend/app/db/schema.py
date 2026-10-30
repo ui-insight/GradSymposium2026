@@ -17,6 +17,8 @@ def _ensure_runtime_schema_sync(sync_conn) -> None:
 
     default_false = "FALSE" if dialect == "postgresql" else "0"
     for table, name, definition in (
+        ("Voting_Round", "Public_Browser", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
+        ("Voter", "Browser_Only", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
         ("Voting_Round", "Candidate_Type", "VARCHAR(20) NOT NULL DEFAULT 'poster'"),
         ("Voting_Round", "Trainees_Only", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
         ("Voter", "Is_Trainee", f"BOOLEAN NOT NULL DEFAULT {default_false}"),
